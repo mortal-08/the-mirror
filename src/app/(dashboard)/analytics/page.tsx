@@ -1,0 +1,18 @@
+import { redirect } from 'next/navigation'
+import { getUserId } from '@/lib/auth'
+import { getAnalyticsData } from '@/actions/timeEntries'
+import { getCategories } from '@/actions/categories'
+import AnalyticsClient from '@/components/AnalyticsClient'
+
+export default async function AnalyticsPage() {
+  const userId = await getUserId()
+  if (!userId) redirect('/login')
+
+  const [data7, data30, categories] = await Promise.all([
+    getAnalyticsData(7),
+    getAnalyticsData(30),
+    getCategories(),
+  ])
+
+  return <AnalyticsClient data7={data7} data30={data30} categories={categories} />
+}

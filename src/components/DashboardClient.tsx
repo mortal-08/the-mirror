@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Activity, Database, BookOpen, Target, Clock, Timer, History, Settings, Sparkles, Shuffle, Plus, Trash2, X } from 'lucide-react'
+import { Activity, Database, BookOpen, Target, Clock, Timer, History, Settings, Sparkles, Shuffle, Plus, Trash2, X, BarChart3 } from 'lucide-react'
 import { upsertJournal } from '@/actions/journal'
 import { useToast } from '@/components/ToastProvider'
 import ManualEntryForm from '@/components/ManualEntryForm'
@@ -60,10 +60,11 @@ const QUOTES = [
 const MOODS = ['🔥', '😊', '😐', '😓', '💪', '🧠', '☕', '🌙']
 
 const NAV_ORBS = [
-  { href: '/timer', label: 'Timer', icon: Timer, color: '#7c3aed', size: 100 },
-  { href: '/journal', label: 'Journal', icon: BookOpen, color: '#2563eb', size: 85 },
-  { href: '/history', label: 'History', icon: History, color: '#06b6d4', size: 85 },
-  { href: '/settings', label: 'Settings', icon: Settings, color: '#10b981', size: 75 },
+  { href: '/timer', label: 'Timer', icon: Timer, color: '#7c3aed' },
+  { href: '/journal', label: 'Journal', icon: BookOpen, color: '#2563eb' },
+  { href: '/history', label: 'History', icon: History, color: '#06b6d4' },
+  { href: '/analytics', label: 'Analytics', icon: BarChart3, color: '#f59e0b' },
+  { href: '/settings', label: 'Settings', icon: Settings, color: '#10b981' },
 ]
 
 const TIME_SLOTS = ['06:00','07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00','22:00','23:00']

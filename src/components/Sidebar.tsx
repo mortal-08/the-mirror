@@ -7,7 +7,7 @@ import { useState, useEffect, createContext, useContext } from 'react'
 import { useTheme } from './ThemeProvider'
 import {
   LayoutDashboard, Timer, History, Settings, LogOut,
-  Menu, X, BookOpen, Moon, Sun, Orbit, PanelLeftClose, PanelLeft
+  Menu, X, BookOpen, Moon, Sun, Orbit, PanelLeftClose, PanelLeft, BarChart3
 } from 'lucide-react'
 
 // Sidebar context so other components can read collapsed state
@@ -20,6 +20,7 @@ const NAV_ITEMS = [
   { href: '/timer', label: 'Timer', icon: Timer },
   { href: '/journal', label: 'Journal', icon: BookOpen },
   { href: '/history', label: 'History', icon: History },
+  { href: '/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/settings', label: 'Settings', icon: Settings },
 ]
 
@@ -96,7 +97,7 @@ export default function Sidebar() {
                 key={item.href}
                 href={item.href}
                 className={`sidebar-link ${isActive ? 'active' : ''}`}
-                onClick={() => setMobileOpen(false)}
+                onClick={() => { setMobileOpen(false); document.querySelector('.sidebar')?.classList.remove('open') }}
                 title={collapsed ? item.label : undefined}
                 style={{ justifyContent: collapsed ? 'center' : 'flex-start', padding: collapsed ? '0.85rem' : '0.85rem 1rem' }}
               >

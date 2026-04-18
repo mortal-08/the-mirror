@@ -133,4 +133,67 @@ export async function deleteTimeEntry(id: string) {
   await prisma.timeEntry.delete({ where: { id } })
   revalidatePath('/')
   revalidatePath('/history')
+  revalidatePath('/analytics')
+}
+
+export async function getAnalyticsData(days: number = 7) {
+  const userId = await getUserId()
+  if (!userId) return { dailyData: [], categoryTotals: [], totalSeconds: 0 }
+
+  const now = new Date()
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - days + 1)
+
+  const entries = await prisma.timeEntry.findMany({
+    where: { userId, startTime: { gte: start } },
+    include: { category: true },
+    orderBy: { startTime: 'asc' },
+  })
+
+  // Build daily breakdown
+  const dailyMap: Record<string, { date: string; totalSeconds: number; categories: Record<string, { name: string; color: string; seconds: number }> }> = {}
+
+  // Pre-fill all days
+  for (let i = 0; i < days; i++) {
+    const d = new Date(start)
+    d.setDate(start.getDate() + i)
+    const key = d.toISOString().split('T')[0]
+    dailyMap[key] = { date: key, totalSeconds: 0, categories: {} }
+  }
+
+  let totalSeconds = 0
+  const catTotalMap: Record<string, { name: string; color: string; seconds: number }> = {}
+
+  entries.forEach((entry) => {
+    const dur = entry.durationSeconds || 0
+    totalSeconds += dur
+    const dayKey = new Date(entry.startTime).toISOString().split('T')[0]
+    if (dailyMap[dayKey]) {
+      dailyMap[dayKey].totalSeconds += dur
+      if (entry.category) {
+        const cid = entry.category.id
+        if (!dailyMap[dayKey].categories[cid]) {
+          dailyMap[dayKey].categories[cid] = { name: entry.category.name, color: entry.category.color, seconds: 0 }
+        }
+        dailyMap[dayKey].categories[cid].seconds += dur
+      }
+    }
+    if (entry.category) {
+      if (!catTotalMap[entry.category.id]) {
+        catTotalMap[entry.category.id] = { name: entry.category.name, color: entry.category.color, seconds: 0 }
+      }
+      catTotalMap[entry.category.id].seconds += dur
+    }
+  })
+
+  const dailyData = Object.values(dailyMap).map(d => ({
+    date: d.date,
+    totalSeconds: d.totalSeconds,
+    categories: Object.values(d.categories).sort((a, b) => b.seconds - a.seconds),
+  }))
+
+  return {
+    dailyData,
+    categoryTotals: Object.values(catTotalMap).sort((a, b) => b.seconds - a.seconds),
+    totalSeconds,
+  }
 }

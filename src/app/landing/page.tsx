@@ -134,63 +134,50 @@ export default function LandingPage() {
       <ParticleNetwork />
 
       {/* Navigation (Optional Top Bar) */}
-      <nav style={{ position: 'absolute', top: 0, width: '100%', padding: '1.5rem 3rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 100 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.2rem', fontWeight: 900, letterSpacing: '0.1em' }}>
-           <Orbit size={24} color="var(--accent-primary)" />
+      <nav style={{ position: 'absolute', top: 0, width: '100%', padding: '1rem 1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 100, flexWrap: 'wrap', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.1rem', fontWeight: 900, letterSpacing: '0.08em' }}>
+           <Orbit size={22} color="var(--accent-primary)" />
            The Mirror
         </div>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <button 
-            className="theme-btn" 
-            onClick={() => setTheme(isLight ? 'dark' : 'light')} 
-            aria-label="Toggle Theme"
-          >
-            {isLight ? <Moon size={20} /> : <Sun size={20} />}
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <button className="theme-btn" onClick={() => setTheme(isLight ? 'dark' : 'light')} aria-label="Toggle Theme" style={{ width: 36, height: 36 }}>
+            {isLight ? <Moon size={18} /> : <Sun size={18} />}
           </button>
-          <Link href="/login" className="btn-secondary" style={{ padding: '0.6rem 1.5rem', fontSize: '0.9rem' }}>Access Data</Link>
-          <Link href="/signup" className="btn-primary" style={{ padding: '0.6rem 1.5rem', fontSize: '0.9rem', boxShadow: 'none' }}>Get Started <ArrowRight size={16}/></Link>
+          <Link href="/login" className="btn-secondary" style={{ padding: '0.4rem 1rem', fontSize: '0.8rem' }}>Sign In</Link>
+          <Link href="/signup" className="btn-primary" style={{ padding: '0.4rem 1rem', fontSize: '0.8rem', boxShadow: 'none' }}>Get Started<ArrowRight size={14}/></Link>
         </div>
       </nav>
 
       {/* --- HERO SECTION --- */}
       <RevealSection className="landing-hero" delay={100} style={{ 
-        padding: '6rem 2rem 4rem', 
-        width: '100%', maxWidth: '1000px', margin: '0 auto', /* FIX: Forces center alignment */
+        padding: '4rem 1.25rem 3rem', 
+        width: '100%', maxWidth: '900px', margin: '0 auto',
         display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' 
       }}>
         <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem',
-          border: '1px solid var(--surface-border-hover)',
-          borderRadius: '999px',
-          padding: '0.5rem 1rem',
-          marginBottom: '2rem',
-          fontSize: '0.75rem',
-          letterSpacing: '0.15em',
-          textTransform: 'uppercase',
-          color: 'var(--accent-primary)',
-          background: 'var(--surface)',
-          boxShadow: 'var(--shadow-sm)'
+          display: 'flex', alignItems: 'center', gap: '0.4rem',
+          border: '1px solid var(--surface-border-hover)', borderRadius: '999px',
+          padding: '0.4rem 0.8rem', marginBottom: '1.5rem',
+          fontSize: '0.7rem', letterSpacing: '0.12em', textTransform: 'uppercase',
+          color: 'var(--accent-primary)', background: 'var(--surface)', boxShadow: 'var(--shadow-sm)'
         }}>
-          <Sparkles size={14} />
-          <span>Clarity Through Data</span>
+          <Sparkles size={12} /> <span>Clarity Through Data</span>
         </div>
 
-        <h1 className="landing-title" style={{ maxWidth: '900px', margin: '0 auto 2rem' }}>
+        <h1 className="landing-title" style={{ maxWidth: '800px', margin: '0 auto 1.25rem' }}>
           A perfect reflection<br />
           <span>of your time.</span>
         </h1>
 
-        <p className="landing-subtitle" style={{ fontSize: '1.25rem', maxWidth: '800px', margin: '0 auto' }}>
-          Stop guessing where your day went. Mirror tracks your habits, visualizes your deep work, and gives you uncompromising visibility into how you spend your hours.
+        <p className="landing-subtitle" style={{ fontSize: 'clamp(0.9rem, 2.5vw, 1.15rem)', maxWidth: '600px', margin: '0 auto', lineHeight: 1.6 }}>
+          Stop guessing where your day went. Mirror tracks your habits, visualizes your deep work, and gives you clarity on how you spend your hours.
         </p>
 
-        <div className="flex-row" style={{ justifyContent: 'center', gap: '1.5rem', marginTop: '3rem' }}>
-          <Link href="/signup" className="btn-primary" style={{ minWidth: '180px' }}>
-            Get Started <ArrowRight size={18} />
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem', marginTop: '2rem', flexWrap: 'wrap' }}>
+          <Link href="/signup" className="btn-primary" style={{ padding: '0.7rem 1.5rem', fontSize: '0.9rem' }}>
+            Get Started <ArrowRight size={16} />
           </Link>
-          <Link href="/login" className="btn-secondary" style={{ minWidth: '160px' }}>
+          <Link href="/login" className="btn-secondary" style={{ padding: '0.7rem 1.5rem', fontSize: '0.9rem' }}>
             Sign In
           </Link>
         </div>
