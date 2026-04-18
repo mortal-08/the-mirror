@@ -1,12 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 import { useSidebar } from '@/components/Sidebar'
 import { Menu, X } from 'lucide-react'
 
 export default function DashboardLayoutClient({ children }: { children: React.ReactNode }) {
   const { collapsed } = useSidebar()
-  const [mobileOpen, setMobileOpen] = useState(false)
+  const pathname = usePathname()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
@@ -16,36 +18,30 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
     return () => window.removeEventListener('resize', check)
   }, [])
 
-  // Sync state with DOM when sidebar class changes externally (e.g. nav link click)
+  // Close sidebar when route changes (fixes the X staying after nav)
   useEffect(() => {
-    if (!isMobile) return
     const sidebar = document.querySelector('.sidebar')
-    if (!sidebar) return
-    const observer = new MutationObserver(() => {
-      const isOpen = sidebar.classList.contains('open')
-      setMobileOpen(isOpen)
-    })
-    observer.observe(sidebar, { attributes: true, attributeFilter: ['class'] })
-    return () => observer.disconnect()
-  }, [isMobile])
+    if (sidebar) sidebar.classList.remove('open')
+    setSidebarOpen(false)
+  }, [pathname])
 
-  const toggleMobile = (e: React.MouseEvent) => {
+  const toggleSidebar = (e: React.MouseEvent) => {
+    e.preventDefault()
     e.stopPropagation()
     const sidebar = document.querySelector('.sidebar')
     if (!sidebar) return
-    const isOpen = sidebar.classList.contains('open')
-    if (isOpen) {
-      sidebar.classList.remove('open')
-      setMobileOpen(false)
-    } else {
+    const willOpen = !sidebar.classList.contains('open')
+    if (willOpen) {
       sidebar.classList.add('open')
-      setMobileOpen(true)
+    } else {
+      sidebar.classList.remove('open')
     }
+    setSidebarOpen(willOpen)
   }
 
-  const closeMobile = () => {
+  const closeSidebar = () => {
     document.querySelector('.sidebar')?.classList.remove('open')
-    setMobileOpen(false)
+    setSidebarOpen(false)
   }
 
   return (
@@ -57,11 +53,11 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
         padding: isMobile ? '1rem' : '1.5rem',
       }}
     >
-      {/* Mobile hamburger */}
+      {/* Hamburger - only on mobile */}
       {isMobile && (
         <button
-          className="mobile-hamburger"
-          onClick={toggleMobile}
+          onClick={toggleSidebar}
+          onTouchEnd={(e) => { e.preventDefault(); toggleSidebar(e as any) }}
           aria-label="Toggle menu"
           style={{
             display: 'flex',
@@ -70,15 +66,20 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
             background: 'var(--surface)', border: '1px solid var(--surface-border)',
             color: 'var(--text-primary)', cursor: 'pointer',
             marginBottom: '0.75rem', touchAction: 'manipulation',
+            WebkitTapHighlightColor: 'transparent',
           }}
         >
-          {mobileOpen ? <X size={18} /> : <Menu size={18} />}
+          {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
         </button>
       )}
 
-      {/* Mobile overlay */}
-      {mobileOpen && (
-        <div onClick={closeMobile} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 150, touchAction: 'manipulation' }} />
+      {/* Overlay */}
+      {sidebarOpen && (
+        <div
+          onClick={closeSidebar}
+          onTouchEnd={(e) => { e.preventDefault(); closeSidebar() }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 150, touchAction: 'manipulation' }}
+        />
       )}
 
       {children}

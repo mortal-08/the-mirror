@@ -11,14 +11,7 @@ export default async function TimerPage() {
 
   return (
     <div className="motion-stack">
-      <div className="page-header reveal-up" style={{ '--reveal-delay': '70ms' } as React.CSSProperties}>
-        <h1 className="page-title">Timer</h1>
-        <p className="page-subtitle">Focus mode & Pomodoro</p>
-      </div>
-
-      <div className="reveal-up" style={{ '--reveal-delay': '150ms' } as React.CSSProperties}>
-        <LiveTimer categories={categories} />
-      </div>
+      <LiveTimer categories={categories} />
     </div>
   )
 }
