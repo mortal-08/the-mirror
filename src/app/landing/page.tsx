@@ -205,7 +205,7 @@ export default function LandingPage() {
               <Quote size={20} color="var(--accent-primary)" style={{ opacity: 0.3, position: 'absolute', top: '1.5rem', right: '1.5rem' }} />
               <p style={{ fontSize: '1rem', lineHeight: 1.6, color: '#e2e8f0', marginBottom: '1.5rem', fontStyle: 'italic' }}>"{item.quote}"</p>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <div style={{ width: 24, height: 2px, background: 'var(--accent-primary)' }} />
+                <div style={{ width: 24, height: 2, background: 'var(--accent-primary)' }} />
                 <span style={{ fontSize: '0.8rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>{item.author}</span>
               </div>
             </div>
