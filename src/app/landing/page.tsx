@@ -32,10 +32,10 @@ function useScrollReveal() {
 }
 
 /* --- ScrollReveal Wrapper Component --- */
-function RevealSection({ children, delay = 0, className = "" }: { children: React.ReactNode, delay?: number, className?: string }) {
+function RevealSection({ children, delay = 0, className = "", style }: { children: React.ReactNode, delay?: number, className?: string, style?: React.CSSProperties }) {
   const ref = useScrollReveal()
   return (
-    <div ref={ref} className={`scroll-reveal ${className}`} style={{ transitionDelay: `${delay}ms` }}>
+    <div ref={ref} className={`scroll-reveal ${className}`} style={{ transitionDelay: `${delay}ms`, ...style }}>
       {children}
     </div>
   )
