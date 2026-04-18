@@ -180,7 +180,6 @@ export default function LiveTimer({ categories }: { categories: any[] }) {
     <button
       className={className}
       onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClick(e) }}
-      onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); onClick(e) }}
       style={{ ...style, touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
     >
       {children}

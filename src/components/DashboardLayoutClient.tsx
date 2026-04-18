@@ -57,7 +57,6 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
       {isMobile && (
         <button
           onClick={toggleSidebar}
-          onTouchEnd={(e) => { e.preventDefault(); toggleSidebar(e as any) }}
           aria-label="Toggle menu"
           style={{
             display: 'flex',
@@ -77,7 +76,6 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
       {sidebarOpen && (
         <div
           onClick={closeSidebar}
-          onTouchEnd={(e) => { e.preventDefault(); closeSidebar() }}
           style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 150, touchAction: 'manipulation' }}
         />
       )}
