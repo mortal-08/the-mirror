@@ -41,6 +41,58 @@ function RevealSection({ children, delay = 0, className = "", style }: { childre
   )
 }
 
+/* --- Dynamic Particle Network Background --- */
+function ParticleNetwork() {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+  if (!mounted) return null
+
+  // Generate deterministic but random-looking dots
+  const dots = Array.from({ length: 40 }).map((_, i) => ({
+    id: i,
+    left: `${Math.random() * 100}%`,
+    top: `${Math.random() * 100}%`,
+    duration: `${15 + Math.random() * 10}s`,
+    delay: `${-Math.random() * 10}s`,
+    color: i % 3 === 0 ? 'rgba(0,255,204,0.8)' : 'rgba(255,255,255,0.4)',
+    size: Math.random() * 4 + 1
+  }))
+
+  const orbs = [
+    { left: '10%', top: '20%', size: 300, color: 'rgba(0,255,204,0.03)', delay: '0s' },
+    { left: '70%', top: '60%', size: 450, color: 'rgba(0,136,255,0.03)', delay: '-4s' },
+    { left: '40%', top: '-10%', size: 500, color: 'rgba(0,255,204,0.02)', delay: '-2s' },
+  ]
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: -5, pointerEvents: 'none', overflow: 'hidden' }}>
+      {/* Quantum Rotating Ring Background Element */}
+      <div className="quantum-ring" />
+      
+      {/* Floating Glowing Orbs */}
+      {orbs.map((orb, i) => (
+        <div key={`orb-${i}`} className="floating-orb" style={{
+          left: orb.left, top: orb.top, 
+          width: orb.size, height: orb.size,
+          '--color': orb.color,
+          animationDelay: orb.delay
+        } as React.CSSProperties} />
+      ))}
+
+      {/* Tiny Animated Neural Dots */}
+      {dots.map((dot) => (
+        <div key={`dot-${dot.id}`} className="particle-dot" style={{
+          left: dot.left, top: dot.top,
+          width: dot.size, height: dot.size,
+          '--color': dot.color,
+          animationDuration: dot.duration,
+          animationDelay: dot.delay
+        } as React.CSSProperties} />
+      ))}
+    </div>
+  )
+}
+
 const features = [
   {
     title: 'Open Protocol Sync',
@@ -75,8 +127,10 @@ export default function LandingPage() {
   return (
     <div className="landing-page page-shell" style={{ paddingTop: '8vh', backgroundImage: 'radial-gradient(ellipse at top, rgba(0, 255, 204, 0.05), transparent 60%)' }}>
       
+      <ParticleNetwork />
+
       {/* Navigation (Optional Top Bar) */}
-      <nav style={{ position: 'absolute', top: 0, width: '100%', padding: '1.5rem 3rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <nav style={{ position: 'absolute', top: 0, width: '100%', padding: '1.5rem 3rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 100 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.2rem', fontWeight: 900, color: '#fff', letterSpacing: '0.1em' }}>
            <Orbit size={24} color="var(--accent-primary)" />
            Q-MIRROR
@@ -88,16 +142,19 @@ export default function LandingPage() {
       </nav>
 
       {/* --- HERO SECTION --- */}
-      <RevealSection className="landing-hero" delay={100} style={{ padding: '6rem 2rem 4rem' }}>
+      <RevealSection className="landing-hero" delay={100} style={{ 
+        padding: '6rem 2rem 4rem', 
+        width: '100%', maxWidth: '1000px', margin: '0 auto', /* FIX: Forces center alignment */
+        display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' 
+      }}>
         <div style={{
-          width: 'fit-content',
-          margin: '0 auto 2rem',
           display: 'flex',
           alignItems: 'center',
           gap: '0.5rem',
           border: '1px solid rgba(0, 255, 204, 0.3)',
           borderRadius: '999px',
           padding: '0.5rem 1rem',
+          marginBottom: '2rem',
           fontSize: '0.75rem',
           letterSpacing: '0.15em',
           textTransform: 'uppercase',
@@ -114,7 +171,7 @@ export default function LandingPage() {
           <span>Intelligence</span>
         </h1>
 
-        <p className="landing-subtitle" style={{ fontSize: '1.25rem' }}>
+        <p className="landing-subtitle" style={{ fontSize: '1.25rem', maxWidth: '800px', margin: '0 auto' }}>
           Mirror is a next-generation time architecture delivering instant analytics, rigid execution protocols, and pure cognitive momentum.
         </p>
 
@@ -150,7 +207,8 @@ export default function LandingPage() {
       </RevealSection>
 
       {/* --- PROTOCOL & HEALTH METRICS --- */}
-      <section style={{ background: 'linear-gradient(180deg, transparent, rgba(0,255,204,0.02) 20%, rgba(0,255,204,0.02) 80%, transparent)', width: '100%', padding: '6rem 2rem' }}>
+      <section style={{ width: '100%', padding: '6rem 2rem', position: 'relative' }}>
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, transparent, rgba(0,255,204,0.02) 20%, rgba(0,255,204,0.02) 80%, transparent)', zIndex: -1}} />
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <div className="grid-2" style={{ alignItems: 'center', gap: '4rem' }}>
             
@@ -161,7 +219,7 @@ export default function LandingPage() {
               </p>
               <ul className="flex-col gap-md" style={{ listStyle: 'none' }}>
                 {healthFacts.map((fact, idx) => (
-                  <li key={idx} style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', background: 'rgba(0,0,0,0.4)', padding: '1rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <li key={idx} style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', background: 'rgba(0,0,0,0.4)', padding: '1rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', backdropFilter: 'blur(8px)' }}>
                     <div style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--accent-secondary)' }}>{fact.value}</div>
                     <div className="text-sm text-secondary">{fact.label}</div>
                   </li>

@@ -10,9 +10,9 @@
   --bg-secondary: #001210;
   --bg-tertiary: #011C18;
   
-  --surface: rgba(0, 36, 30, 0.2);
-  --surface-hover: rgba(0, 50, 45, 0.4);
-  --surface-active: rgba(0, 70, 60, 0.5);
+  --surface: rgba(0, 36, 30, 0.4);
+  --surface-hover: rgba(0, 50, 45, 0.6);
+  --surface-active: rgba(0, 70, 60, 0.7);
   --surface-border: rgba(0, 240, 255, 0.15);
   --surface-border-hover: rgba(0, 240, 255, 0.4);
 
@@ -86,27 +86,32 @@ body {
 }
 
 /* ═══════════════════════════════════════════════
-   PERFORMANCE-OPTIMIZED BACKGROUND EFFECTS
+   EXTREME ANIMATED PARTICLES & STARRY SKY
    ═══════════════════════════════════════════════ */
-/* Subtle star field - pure CSS gradients, no expensive filters */
 body::before {
   content: '';
   position: fixed;
-  inset: 0;
+  inset: -100%;
   z-index: -10;
   background-image: 
-    radial-gradient(1px 1px at 10% 20%, rgba(255,255,255,0.5) 1px, transparent 1px),
-    radial-gradient(1px 1px at 30% 60%, rgba(255,255,255,0.3) 1px, transparent 1px),
-    radial-gradient(2px 2px at 80% 40%, rgba(0,255,204,0.4) 1px, transparent 1px),
-    radial-gradient(1px 1px at 60% 80%, rgba(255,255,255,0.4) 1px, transparent 1px),
-    radial-gradient(1.5px 1.5px at 90% 90%, rgba(0,136,255,0.3) 1px, transparent 1px),
-    radial-gradient(1px 1px at 40% 10%, rgba(0,255,204,0.5) 1px, transparent 1px);
+    radial-gradient(1px 1px at 10% 20%, rgba(255,255,255,0.8) 1px, transparent 1px),
+    radial-gradient(1px 1px at 30% 60%, rgba(255,255,255,0.5) 1px, transparent 1px),
+    radial-gradient(2px 2px at 80% 40%, rgba(0,255,204,0.6) 1px, transparent 1px),
+    radial-gradient(1px 1px at 60% 80%, rgba(255,255,255,0.6) 1px, transparent 1px),
+    radial-gradient(1.5px 1.5px at 90% 90%, rgba(0,136,255,0.5) 1px, transparent 1px),
+    radial-gradient(1px 1px at 40% 10%, rgba(0,255,204,0.7) 1px, transparent 1px);
   background-size: 200px 200px;
-  opacity: 0.7;
+  opacity: 0.9;
   pointer-events: none;
+  animation: cosmicDrift 200s linear infinite;
+  transform: translate3d(0, 0, 0); /* Hardware Acceleration */
 }
 
-/* Gentle, pre-calculated radial glow without massive backdrop-filters */
+@keyframes cosmicDrift {
+  0% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  100% { transform: translate3d(-200px, -200px, 0) rotate(2deg); }
+}
+
 body::after {
   content: '';
   position: fixed;
@@ -114,6 +119,67 @@ body::after {
   z-index: -9;
   background: radial-gradient(circle at 50% 0%, rgba(0, 255, 204, 0.08) 0%, transparent 60%);
   pointer-events: none;
+}
+
+/* Hard-Accelerated Floating Orbs & Dots */
+.floating-orb {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(4px); /* Very light blur to prevent lag compared to 80px */
+  z-index: -5;
+  animation: floatOrb 8s infinite alternate cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 0 30px var(--color, rgba(0,255,204,0.5));
+  background: var(--color, rgba(0,255,204,0.2));
+  will-change: transform, opacity;
+}
+
+.particle-dot {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: -1;
+  background: var(--color, #fff);
+  box-shadow: 0 0 10px var(--color, #fff);
+  animation: gentlePulse 3s infinite alternate ease-in-out, driftDot 15s infinite linear;
+  will-change: transform, opacity;
+}
+
+@keyframes floatOrb {
+  0% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.3; }
+  100% { transform: translate3d(100px, -150px, 0) scale(1.5); opacity: 0.8; }
+}
+
+@keyframes gentlePulse {
+  0% { opacity: 0.2; transform: scale(0.8); }
+  100% { opacity: 1; transform: scale(1.2); }
+}
+
+@keyframes driftDot {
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(-100px, -200px, 0); }
+}
+
+/* Hyper-Rotating Massive Ring behind Hero */
+.quantum-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 800px;
+  height: 800px;
+  border-radius: 50%;
+  border: 1px dotted rgba(0, 255, 204, 0.3);
+  box-shadow: inset 0 0 80px rgba(0, 255, 204, 0.05);
+  transform-style: preserve-3d;
+  pointer-events: none;
+  z-index: -2;
+  animation: extremeOrbit 30s linear infinite;
+  will-change: transform;
+}
+
+@keyframes extremeOrbit {
+  0% { transform: translate(-50%, -50%) rotateX(65deg) rotate(0deg); }
+  100% { transform: translate(-50%, -50%) rotateX(65deg) rotate(360deg); }
 }
 
 a { color: var(--accent-primary); text-decoration: none; transition: all var(--transition-base); }
@@ -126,7 +192,7 @@ h1 { font-size: 3rem; } h2 { font-size: 2rem; } h3 { font-size: 1.4rem; }
    PREMIUM OPAQUE/GLASS PANELS (LAG FREE)
    ═══════════════════════════════════════════════ */
 .glass, .glass-glow {
-  background: var(--bg-tertiary);
+  background: var(--surface);
   border: 1px solid var(--surface-border);
   border-radius: var(--radius-xl);
   padding: var(--space-xl);
@@ -134,9 +200,10 @@ h1 { font-size: 3rem; } h2 { font-size: 2rem; } h3 { font-size: 1.4rem; }
   position: relative;
   overflow: hidden;
   transition: all var(--transition-base);
+  backdrop-filter: blur(12px); /* Lowered blur significantly to kill lag while maintaining glassy look */
+  -webkit-backdrop-filter: blur(12px);
 }
 
-/* Small edge highlight */
 .glass::before, .glass-glow::before {
   content: '';
   position: absolute;
@@ -147,6 +214,7 @@ h1 { font-size: 3rem; } h2 { font-size: 2rem; } h3 { font-size: 1.4rem; }
 .glass:hover {
   border-color: rgba(0,255,204,0.4);
   box-shadow: 0 10px 30px rgba(0,0,0,0.8), 0 0 20px rgba(0,255,204,0.1);
+  transform: translateY(-4px);
 }
 
 .glass-glow {
@@ -157,6 +225,7 @@ h1 { font-size: 3rem; } h2 { font-size: 2rem; } h3 { font-size: 1.4rem; }
 .glass-glow:hover {
   border-color: rgba(0, 255, 204, 0.5);
   box-shadow: var(--shadow-lg), 0 0 40px rgba(0,255,204,0.15);
+  transform: translateY(-4px);
 }
 
 /* ═══════════════════════════════════════════════
@@ -307,7 +376,6 @@ label { font-size: 0.8rem; font-weight: 700; color: var(--accent-secondary); let
 /* ═══════════════════════════════════════════════
    CHOREOGRAPHY & SCROLL MOTION
    ═══════════════════════════════════════════════ */
-/* Smooth reveal animations handled via IntersectionObserver on the landing page */
 .scroll-reveal {
   opacity: 0;
   transform: translateY(30px);
