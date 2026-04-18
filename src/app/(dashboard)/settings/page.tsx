@@ -17,12 +17,12 @@ export default async function SettingsPage() {
 
   return (
     <div className="motion-stack">
-      <div className="page-header reveal-up" style={{ ['--reveal-delay' as string]: '70ms' }}>
+      <div className="page-header reveal-up" style={{ '--reveal-delay': '70ms' } as React.CSSProperties}>
         <h1 className="page-title">Settings</h1>
         <p className="page-subtitle">Goals, categories & tags</p>
       </div>
 
-      <div className="reveal-up" style={{ ['--reveal-delay' as string]: '150ms' }}>
+      <div className="reveal-up" style={{ '--reveal-delay': '150ms' } as React.CSSProperties}>
         <SettingsClient
           initialCategories={categories}
           initialGoals={goals}

@@ -36,7 +36,7 @@ export default function DashboardView({ stats }: {
 
       {/* Stat Cards */}
       <div className="grid-2">
-        <div className="stat-card glass-glow reveal-up" style={{ padding: '3rem 2rem', '--reveal-delay': '100ms' as any }}>
+        <div className="stat-card glass-glow reveal-up" style={{ padding: '3rem 2rem', '--reveal-delay': '100ms' } as React.CSSProperties}>
           <div className="stat-label flex-row" style={{ alignItems: 'center', gap: '0.5rem' }}>
             <Activity size={16} /> TODAYS THROUGHPUT
           </div>
@@ -53,7 +53,7 @@ export default function DashboardView({ stats }: {
           </div>
         </div>
 
-        <div className="stat-card glass-glow reveal-up" style={{ padding: '3rem 2rem', '--reveal-delay': '200ms' as any }}>
+        <div className="stat-card glass-glow reveal-up" style={{ padding: '3rem 2rem', '--reveal-delay': '200ms' } as React.CSSProperties}>
           <div className="stat-label flex-row" style={{ alignItems: 'center', gap: '0.5rem' }}>
             <Database size={16} /> WEEKLY AGGREGATE
           </div>
@@ -73,7 +73,7 @@ export default function DashboardView({ stats }: {
 
       {/* Category Breakdown Graphical Interface */}
       {stats.categoryBreakdown.length > 0 && (
-        <div className="glass-glow reveal-up" style={{ padding: '3rem 2rem', '--reveal-delay': '300ms' as any }}>
+        <div className="glass-glow reveal-up" style={{ padding: '3rem 2rem', '--reveal-delay': '300ms' } as React.CSSProperties}>
           <h3 style={{ marginBottom: '2rem', fontSize: '1rem', textTransform: 'uppercase', letterSpacing: '0.2em', color: 'var(--accent-secondary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <span style={{ width: 8, height: 8, background: 'var(--accent-secondary)', borderRadius: '50%', boxShadow: '0 0 10px var(--accent-secondary)' }} />
             Algorithmic Breakdown

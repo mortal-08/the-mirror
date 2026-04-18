@@ -22,20 +22,20 @@ export default async function DashboardPage() {
 
   return (
     <div className="motion-stack">
-      <div className="page-header reveal-up" style={{ ['--reveal-delay' as string]: '60ms' }}>
+      <div className="page-header reveal-up" style={{ '--reveal-delay': '60ms' } as React.CSSProperties}>
         <h1 className="page-title">Dashboard</h1>
         <p className="page-subtitle">Your time at a glance</p>
       </div>
 
-      <div className="reveal-up" style={{ ['--reveal-delay' as string]: '120ms' }}>
+      <div className="reveal-up" style={{ '--reveal-delay': '120ms' } as React.CSSProperties}>
         <DashboardView stats={stats} />
       </div>
 
-      <div className="mt-xl reveal-up" style={{ ['--reveal-delay' as string]: '180ms' }}>
+      <div className="mt-xl reveal-up" style={{ '--reveal-delay': '180ms' } as React.CSSProperties}>
         <ManualEntryForm categories={categories} tags={tags} />
       </div>
 
-      <div className="glass mt-xl reveal-up" style={{ ['--reveal-delay' as string]: '240ms' }}>
+      <div className="glass mt-xl reveal-up" style={{ '--reveal-delay': '240ms' } as React.CSSProperties}>
         <h3 style={{ marginBottom: 'var(--space-md)' }}>Recent Activity</h3>
         <EntryList initialEntries={recentEntries} categories={categories} />
       </div>

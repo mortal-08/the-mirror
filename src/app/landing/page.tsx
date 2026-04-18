@@ -31,7 +31,7 @@ export default function LandingPage() {
       {/* 3D Core representation */}
       <div className="landing-3d-orb" aria-hidden="true" />
       
-      <section className="landing-hero reveal-up" style={{ ['--reveal-delay' as string]: '100ms' }}>
+      <section className="landing-hero reveal-up" style={{ '--reveal-delay': '100ms' } as React.CSSProperties}>
         <div style={{
           width: 'fit-content',
           margin: '0 auto 1.5rem',
@@ -72,7 +72,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="reveal-up" style={{ width: '100%', maxWidth: '1000px', margin: '4rem auto 0', '--reveal-delay': '300ms' as any }}>
+      <section className="reveal-up" style={{ width: '100%', maxWidth: '1000px', margin: '4rem auto 0', '--reveal-delay': '300ms' } as React.CSSProperties}>
         <div className="grid-2">
           {/* Left Panel */}
           <div className="glass-glow flex-col gap-lg" style={{ padding: '3rem' }}>
@@ -136,7 +136,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="glass-glow reveal-up flex-col" style={{ width: '100%', maxWidth: '1000px', margin: '4rem auto', alignItems: 'center', textAlign: 'center', padding: '4rem 2rem', '--reveal-delay': '500ms' as any }}>
+      <section className="glass-glow reveal-up flex-col" style={{ width: '100%', maxWidth: '1000px', margin: '4rem auto', alignItems: 'center', textAlign: 'center', padding: '4rem 2rem', '--reveal-delay': '500ms' } as React.CSSProperties}>
         <h2 style={{ fontSize: '2.2rem', marginBottom: '1rem' }}>Ready to synchronize with the network?</h2>
         <p className="text-secondary" style={{ fontSize: '1.2rem', marginBottom: '2rem' }}>Join the system and make every second measurable and intentional.</p>
         <Link href="/signup" className="btn-primary" style={{ padding: '1rem 3rem' }}>

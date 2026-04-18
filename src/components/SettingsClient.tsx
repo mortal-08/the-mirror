@@ -101,7 +101,7 @@ export default function SettingsClient({
       </div>
 
       {/* Categories */}
-      <div className="glass-glow reveal-up" style={{ padding: '2rem', '--reveal-delay': '100ms' as any }}>
+      <div className="glass-glow reveal-up" style={{ padding: '2rem', '--reveal-delay': '100ms' } as React.CSSProperties}>
         <div className="flex-row gap-sm" style={{ marginBottom: '2rem', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '1rem' }}>
           <Folder size={20} style={{ color: 'var(--accent-primary)' }} />
           <h3 style={{ fontSize: '1.2rem', color: 'var(--accent-primary)' }}>Data Nodes / Categories</h3>
@@ -145,7 +145,7 @@ export default function SettingsClient({
       </div>
 
       {/* Tags */}
-      <div className="glass-glow reveal-up" style={{ padding: '2rem', '--reveal-delay': '200ms' as any }}>
+      <div className="glass-glow reveal-up" style={{ padding: '2rem', '--reveal-delay': '200ms' } as React.CSSProperties}>
         <div className="flex-row gap-sm" style={{ marginBottom: '2rem', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '1rem' }}>
           <Tag size={20} style={{ color: 'var(--accent-tertiary)' }} />
           <h3 style={{ fontSize: '1.2rem', color: 'var(--accent-tertiary)' }}>Metadata Tags</h3>
