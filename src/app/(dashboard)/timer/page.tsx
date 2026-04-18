@@ -10,13 +10,15 @@ export default async function TimerPage() {
   const categories = await getCategories()
 
   return (
-    <div>
-      <div className="page-header">
+    <div className="motion-stack">
+      <div className="page-header reveal-up" style={{ ['--reveal-delay' as string]: '70ms' }}>
         <h1 className="page-title">Timer</h1>
         <p className="page-subtitle">Focus mode & Pomodoro</p>
       </div>
 
-      <LiveTimer categories={categories} />
+      <div className="reveal-up" style={{ ['--reveal-delay' as string]: '150ms' }}>
+        <LiveTimer categories={categories} />
+      </div>
     </div>
   )
 }

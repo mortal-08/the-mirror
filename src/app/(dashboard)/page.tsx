@@ -9,7 +9,7 @@ import ManualEntryForm from '@/components/ManualEntryForm'
 
 export default async function DashboardPage() {
   const userId = await getUserId()
-  if (!userId) redirect('/login')
+  if (!userId) redirect('/landing')
 
   const [categories, entries, stats, tags] = await Promise.all([
     getCategories(),
@@ -21,19 +21,21 @@ export default async function DashboardPage() {
   const recentEntries = entries.slice(0, 10)
 
   return (
-    <div>
-      <div className="page-header">
+    <div className="motion-stack">
+      <div className="page-header reveal-up" style={{ ['--reveal-delay' as string]: '60ms' }}>
         <h1 className="page-title">Dashboard</h1>
         <p className="page-subtitle">Your time at a glance</p>
       </div>
 
-      <DashboardView stats={stats} />
+      <div className="reveal-up" style={{ ['--reveal-delay' as string]: '120ms' }}>
+        <DashboardView stats={stats} />
+      </div>
 
-      <div className="mt-xl">
+      <div className="mt-xl reveal-up" style={{ ['--reveal-delay' as string]: '180ms' }}>
         <ManualEntryForm categories={categories} tags={tags} />
       </div>
 
-      <div className="glass mt-xl">
+      <div className="glass mt-xl reveal-up" style={{ ['--reveal-delay' as string]: '240ms' }}>
         <h3 style={{ marginBottom: 'var(--space-md)' }}>Recent Activity</h3>
         <EntryList initialEntries={recentEntries} categories={categories} />
       </div>

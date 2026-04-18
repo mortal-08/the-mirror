@@ -73,6 +73,10 @@ export default function SignupPage() {
             </div>
             <h1 className="auth-logo">The Mirror</h1>
             <p className="auth-subtitle">Create your account and start tracking.</p>
+            <Link href="/landing" className="auth-preview-link">
+              Preview landing page
+              <span className="auth-link-arrow">→</span>
+            </Link>
           </div>
 
           {/* Error */}

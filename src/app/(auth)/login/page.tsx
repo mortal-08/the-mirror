@@ -52,6 +52,10 @@ export default function LoginPage() {
             </div>
             <h1 className="auth-logo">The Mirror</h1>
             <p className="auth-subtitle">Welcome back. See your reflection.</p>
+            <Link href="/landing" className="auth-preview-link">
+              Explore the experience
+              <span className="auth-link-arrow">→</span>
+            </Link>
           </div>
 
           {/* Error */}

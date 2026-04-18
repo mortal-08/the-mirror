@@ -16,17 +16,19 @@ export default async function SettingsPage() {
   ])
 
   return (
-    <div>
-      <div className="page-header">
+    <div className="motion-stack">
+      <div className="page-header reveal-up" style={{ ['--reveal-delay' as string]: '70ms' }}>
         <h1 className="page-title">Settings</h1>
         <p className="page-subtitle">Goals, categories & tags</p>
       </div>
 
-      <SettingsClient
-        initialCategories={categories}
-        initialGoals={goals}
-        initialTags={tags}
-      />
+      <div className="reveal-up" style={{ ['--reveal-delay' as string]: '150ms' }}>
+        <SettingsClient
+          initialCategories={categories}
+          initialGoals={goals}
+          initialTags={tags}
+        />
+      </div>
     </div>
   )
 }

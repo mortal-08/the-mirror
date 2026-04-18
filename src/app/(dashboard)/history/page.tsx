@@ -15,8 +15,8 @@ export default async function HistoryPage() {
   ])
 
   return (
-    <div>
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+    <div className="motion-stack">
+      <div className="page-header reveal-up" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', ['--reveal-delay' as string]: '70ms' }}>
         <div>
           <h1 className="page-title">History</h1>
           <p className="page-subtitle">{entries.length} entries logged</p>
@@ -24,7 +24,7 @@ export default async function HistoryPage() {
         <ExportButton entries={entries} />
       </div>
 
-      <div className="glass">
+      <div className="glass reveal-up" style={{ ['--reveal-delay' as string]: '150ms' }}>
         <EntryList initialEntries={entries} categories={categories} />
       </div>
     </div>
