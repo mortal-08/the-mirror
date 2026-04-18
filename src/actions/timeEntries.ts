@@ -150,14 +150,14 @@ export async function getAnalyticsData(days: number = 7) {
   })
 
   // Build daily breakdown
-  const dailyMap: Record<string, { date: string; totalSeconds: number; categories: Record<string, { name: string; color: string; seconds: number }> }> = {}
+  const dailyMap: Record<string, { date: string; totalSeconds: number; categories: Record<string, { name: string; color: string; seconds: number }>; entries: { description: string; seconds: number; category: string; color: string; time: string }[] }> = {}
 
   // Pre-fill all days
   for (let i = 0; i < days; i++) {
     const d = new Date(start)
     d.setDate(start.getDate() + i)
     const key = d.toISOString().split('T')[0]
-    dailyMap[key] = { date: key, totalSeconds: 0, categories: {} }
+    dailyMap[key] = { date: key, totalSeconds: 0, categories: {}, entries: [] }
   }
 
   let totalSeconds = 0
@@ -169,26 +169,36 @@ export async function getAnalyticsData(days: number = 7) {
     const dayKey = new Date(entry.startTime).toISOString().split('T')[0]
     if (dailyMap[dayKey]) {
       dailyMap[dayKey].totalSeconds += dur
-      if (entry.category) {
-        const cid = entry.category.id
-        if (!dailyMap[dayKey].categories[cid]) {
-          dailyMap[dayKey].categories[cid] = { name: entry.category.name, color: entry.category.color, seconds: 0 }
-        }
-        dailyMap[dayKey].categories[cid].seconds += dur
+      const catName = entry.category?.name || 'Uncategorized'
+      const catColor = entry.category?.color || '#888888'
+      const cid = entry.category?.id || '__uncategorized'
+      if (!dailyMap[dayKey].categories[cid]) {
+        dailyMap[dayKey].categories[cid] = { name: catName, color: catColor, seconds: 0 }
       }
+      dailyMap[dayKey].categories[cid].seconds += dur
+      // Add individual entry
+      dailyMap[dayKey].entries.push({
+        description: entry.description || 'No description',
+        seconds: dur,
+        category: catName,
+        color: catColor,
+        time: new Date(entry.startTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+      })
     }
-    if (entry.category) {
-      if (!catTotalMap[entry.category.id]) {
-        catTotalMap[entry.category.id] = { name: entry.category.name, color: entry.category.color, seconds: 0 }
-      }
-      catTotalMap[entry.category.id].seconds += dur
+    const catName = entry.category?.name || 'Uncategorized'
+    const catColor = entry.category?.color || '#888888'
+    const cid = entry.category?.id || '__uncategorized'
+    if (!catTotalMap[cid]) {
+      catTotalMap[cid] = { name: catName, color: catColor, seconds: 0 }
     }
+    catTotalMap[cid].seconds += dur
   })
 
   const dailyData = Object.values(dailyMap).map(d => ({
     date: d.date,
     totalSeconds: d.totalSeconds,
     categories: Object.values(d.categories).sort((a, b) => b.seconds - a.seconds),
+    entries: d.entries,
   }))
 
   return {

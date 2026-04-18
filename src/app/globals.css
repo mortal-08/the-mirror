@@ -918,19 +918,17 @@ label { font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); lette
    RESPONSIVE
    ═══════════════════════════════════════════════ */
 
-/* Hamburger is hidden by default on desktop */
-.mobile-hamburger { display: none !important; }
+
 
 @media (max-width: 900px) {
   /* Sidebar: off-screen, slides in */
   .sidebar { transform: translateX(-100%); position: fixed; width: 260px !important; z-index: 200; }
   .sidebar.open { transform: translateX(0); }
 
-  /* Hamburger: show as a static element inside content flow (NOT fixed) */
-  .mobile-hamburger { display: flex !important; position: static !important; margin-bottom: 1rem; }
+  /* Hamburger visible on mobile (rendered conditionally in JS) */
 
   /* Main content fills screen */
-  .main-content { margin-left: 0 !important; padding: 1rem; padding-top: 0.5rem; }
+  .main-content { padding: 1rem; padding-top: 0.5rem; }
   .page-shell { padding-top: 0; }
 
   /* Grids stack */

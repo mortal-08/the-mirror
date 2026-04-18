@@ -3,22 +3,23 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createTimeEntry } from '@/actions/timeEntries'
 import { useToast } from '@/components/ToastProvider'
-import { Play, Square, RotateCcw, Coffee, Zap, Maximize, Minimize, Settings2, X } from 'lucide-react'
+import { Play, Square, Pause, Coffee, Zap, Maximize, Minimize, Settings2, X, RotateCcw } from 'lucide-react'
 
 type Mode = 'focus' | 'pomodoro'
 type PomodoroPhase = 'work' | 'shortBreak' | 'longBreak'
 
 export default function LiveTimer({ categories }: { categories: any[] }) {
   const { toast } = useToast()
-  const [startTime, setStartTime] = useState<number | null>(null)
-  const [elapsed, setElapsed] = useState(0)
+  const [running, setRunning] = useState(false)
+  const [paused, setPaused] = useState(false)
+  const [elapsed, setElapsed] = useState(0) // seconds elapsed
   const [selectedCat, setSelectedCat] = useState('')
   const [mode, setMode] = useState<Mode>('focus')
   const [pomPhase, setPomPhase] = useState<PomodoroPhase>('work')
   const [pomCount, setPomCount] = useState(0)
-  const [pomRemaining, setPomRemaining] = useState(25 * 60)
   const [showModal, setShowModal] = useState(false)
-  const [stoppedData, setStoppedData] = useState<any>(null)
+  const [stoppedDuration, setStoppedDuration] = useState(0)
+  const [stoppedStart, setStoppedStart] = useState<number>(0)
   const [desc, setDesc] = useState('')
   const [fullscreen, setFullscreen] = useState(false)
   const [modalCat, setModalCat] = useState('')
@@ -30,26 +31,15 @@ export default function LiveTimer({ categories }: { categories: any[] }) {
   const [longBreakMin, setLongBreakMin] = useState(15)
   const [sessionsBeforeLong, setSessionsBeforeLong] = useState(4)
 
-  const startTimeRef = useRef(startTime)
-  const pomPhaseRef = useRef(pomPhase)
-  const pomCountRef = useRef(pomCount)
-  const selectedCatRef = useRef(selectedCat)
-
-  useEffect(() => { startTimeRef.current = startTime }, [startTime])
-  useEffect(() => { pomPhaseRef.current = pomPhase }, [pomPhase])
-  useEffect(() => { pomCountRef.current = pomCount }, [pomCount])
-  useEffect(() => { selectedCatRef.current = selectedCat }, [selectedCat])
+  // Refs for interval
+  const intervalRef = useRef<NodeJS.Timeout | null>(null)
+  const startTimeRef = useRef(0)
+  const elapsedBeforePauseRef = useRef(0)
 
   const pomTimes = { work: workMin * 60, shortBreak: shortBreakMin * 60, longBreak: longBreakMin * 60 }
 
+  // Load settings
   useEffect(() => {
-    const saved = localStorage.getItem('mirror_timer')
-    if (saved) {
-      const data = JSON.parse(saved)
-      setStartTime(data.startTime)
-      setSelectedCat(data.categoryId || '')
-      setMode(data.mode || 'focus')
-    }
     const pomSettings = localStorage.getItem('mirror_pom_settings')
     if (pomSettings) {
       const s = JSON.parse(pomSettings)
@@ -57,7 +47,6 @@ export default function LiveTimer({ categories }: { categories: any[] }) {
       setShortBreakMin(s.shortBreak || 5)
       setLongBreakMin(s.longBreak || 15)
       setSessionsBeforeLong(s.sessions || 4)
-      setPomRemaining((s.work || 25) * 60)
     }
   }, [])
 
@@ -89,303 +78,330 @@ export default function LiveTimer({ categories }: { categories: any[] }) {
     }
   }, [])
 
-  const handlePomodoroComplete = useCallback(() => {
-    playFinishSound()
-    const currentPhase = pomPhaseRef.current
-    const currentCount = pomCountRef.current
-    const currentStart = startTimeRef.current
-    const currentCat = selectedCatRef.current
+  // Timer tick
+  useEffect(() => {
+    if (running && !paused) {
+      startTimeRef.current = Date.now()
+      intervalRef.current = setInterval(() => {
+        const now = Date.now()
+        const newElapsed = elapsedBeforePauseRef.current + Math.floor((now - startTimeRef.current) / 1000)
+        setElapsed(newElapsed)
 
-    if (currentPhase === 'work') {
-      const newCount = currentCount + 1
+        // Pomodoro auto-complete
+        if (mode === 'pomodoro') {
+          const target = pomTimes[pomPhase]
+          if (newElapsed >= target) {
+            handlePomodoroComplete()
+          }
+        }
+      }, 200)
+    } else {
+      if (intervalRef.current) clearInterval(intervalRef.current)
+    }
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
+  }, [running, paused, mode, pomPhase, workMin, shortBreakMin, longBreakMin])
+
+  const handlePomodoroComplete = () => {
+    playFinishSound()
+    if (pomPhase === 'work') {
+      const newCount = pomCount + 1
       setPomCount(newCount)
-      if (currentStart) {
-        const end = Date.now()
-        const dur = Math.floor((end - currentStart) / 1000)
-        createTimeEntry({
-          description: `Pomodoro #${newCount}`,
-          startTime: new Date(currentStart),
-          endTime: new Date(end),
-          durationSeconds: dur,
-          categoryId: currentCat || undefined,
-        })
-        toast(`Pomodoro #${newCount} logged! 🍅`, 'success')
-      }
+      createTimeEntry({
+        description: `Pomodoro #${newCount}`,
+        startTime: new Date(Date.now() - elapsed * 1000),
+        endTime: new Date(),
+        durationSeconds: elapsed,
+        categoryId: selectedCat || undefined,
+      })
+      toast(`Pomodoro #${newCount} logged! 🍅`, 'success')
       if (newCount % sessionsBeforeLong === 0) {
         setPomPhase('longBreak')
-        setPomRemaining(longBreakMin * 60)
       } else {
         setPomPhase('shortBreak')
-        setPomRemaining(shortBreakMin * 60)
       }
-      setStartTime(Date.now())
-      setElapsed(0)
     } else {
       setPomPhase('work')
-      setPomRemaining(workMin * 60)
-      setStartTime(Date.now())
-      setElapsed(0)
       toast('Break over! Focus time. 💪', 'info')
     }
-  }, [playFinishSound, sessionsBeforeLong, longBreakMin, shortBreakMin, workMin, toast])
-
-  useEffect(() => {
-    if (!startTime) return
-    const interval = setInterval(() => {
-      const el = Math.floor((Date.now() - startTime) / 1000)
-      setElapsed(el)
-      if (mode === 'pomodoro') {
-        const target = pomTimes[pomPhase]
-        const rem = target - el
-        setPomRemaining(Math.max(rem, 0))
-        if (rem <= 0) handlePomodoroComplete()
-      }
-    }, 1000)
-    return () => clearInterval(interval)
-  }, [startTime, mode, pomPhase, handlePomodoroComplete])
+    setElapsed(0)
+    elapsedBeforePauseRef.current = 0
+    startTimeRef.current = Date.now()
+  }
 
   const savePomSettings = () => {
     localStorage.setItem('mirror_pom_settings', JSON.stringify({ work: workMin, shortBreak: shortBreakMin, longBreak: longBreakMin, sessions: sessionsBeforeLong }))
-    setPomRemaining(workMin * 60)
     setShowSettings(false)
     toast('Settings saved!', 'success')
   }
 
   const handleStart = () => {
-    const now = Date.now()
-    setStartTime(now)
+    setRunning(true)
+    setPaused(false)
     setElapsed(0)
+    elapsedBeforePauseRef.current = 0
+    startTimeRef.current = Date.now()
+    setStoppedStart(Date.now())
     if (mode === 'pomodoro') {
       setPomPhase('work')
-      setPomRemaining(pomTimes.work)
       setPomCount(0)
     }
-    localStorage.setItem('mirror_timer', JSON.stringify({ startTime: now, categoryId: selectedCat, mode }))
+  }
+
+  const handlePause = () => {
+    elapsedBeforePauseRef.current = elapsed
+    setPaused(true)
+  }
+
+  const handleResume = () => {
+    startTimeRef.current = Date.now()
+    setPaused(false)
   }
 
   const handleStop = () => {
-    if (!startTime) return
-    const end = Date.now()
-    const dur = Math.floor((end - startTime) / 1000)
+    const dur = elapsed
     playFinishSound()
-    const data = { startTime, endTime: end, durationSeconds: dur }
-    setStoppedData(data)
+    setRunning(false)
+    setPaused(false)
+    setStoppedDuration(dur)
     setModalCat(selectedCat)
-    setStartTime(null)
-    setElapsed(0)
-    localStorage.removeItem('mirror_timer')
-    // Exit fullscreen when stopping so modal is visible
     setFullscreen(false)
-    // Show modal after a tick so state is settled
-    setTimeout(() => setShowModal(true), 50)
+    setElapsed(0)
+    elapsedBeforePauseRef.current = 0
+    setTimeout(() => setShowModal(true), 100)
+  }
+
+  const handleReset = () => {
+    setRunning(false)
+    setPaused(false)
+    setElapsed(0)
+    elapsedBeforePauseRef.current = 0
   }
 
   const handleSaveEntry = async () => {
-    if (!stoppedData) return
+    if (stoppedDuration <= 0) return
+    const endTime = Date.now()
     await createTimeEntry({
       description: desc || undefined,
-      startTime: new Date(stoppedData.startTime),
-      endTime: new Date(stoppedData.endTime),
-      durationSeconds: stoppedData.durationSeconds,
+      startTime: new Date(endTime - stoppedDuration * 1000),
+      endTime: new Date(endTime),
+      durationSeconds: stoppedDuration,
       categoryId: modalCat || undefined,
     })
     toast('Time block saved!', 'success')
     setShowModal(false)
     setDesc('')
-    setStoppedData(null)
+    setStoppedDuration(0)
   }
 
   const formatTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600).toString().padStart(2, '0')
     const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0')
     const s = (seconds % 60).toString().padStart(2, '0')
-    return { h, m, s }
+    return `${h}:${m}:${s}`
   }
 
-  const timeObj = mode === 'pomodoro' && startTime ? formatTime(pomRemaining) : formatTime(elapsed)
-  const accentColor = startTime
-    ? (mode === 'pomodoro' ? (pomPhase === 'work' ? 'var(--accent-warning)' : 'var(--accent-success)') : 'var(--accent-primary)')
+  // Display time
+  const displayTime = (() => {
+    if (mode === 'pomodoro') {
+      if (!running) {
+        // Show configured time
+        const target = pomTimes[pomPhase]
+        return formatTime(target)
+      }
+      const remaining = Math.max(pomTimes[pomPhase] - elapsed, 0)
+      return formatTime(remaining)
+    }
+    return formatTime(elapsed)
+  })()
+
+  const accentColor = running
+    ? (mode === 'pomodoro' ? (pomPhase === 'work' ? '#ffbe0b' : '#00cc88') : 'var(--accent-primary)')
     : 'var(--text-tertiary)'
 
-  const pomProgress = mode === 'pomodoro' && startTime
-    ? ((pomTimes[pomPhase] - pomRemaining) / pomTimes[pomPhase]) * 100
-    : 0
+  // Progress for ring (0-1)
+  const progress = (() => {
+    if (mode === 'pomodoro' && running) {
+      const target = pomTimes[pomPhase]
+      return Math.min(elapsed / target, 1)
+    }
+    return 0
+  })()
+
   const circumference = 2 * Math.PI * 140
+  const dashOffset = circumference - (circumference * progress)
 
-  return (
-    <>
-      {/* Timer Card */}
-      {fullscreen ? (
-        <div className="fullscreen-overlay" style={{ zIndex: 9999 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '2rem', position: 'relative' }}>
-            <button onClick={() => setFullscreen(false)} style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', background: 'var(--surface)', border: '1px solid var(--surface-border)', color: 'var(--text-secondary)', width: 40, height: 40, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 10 }}>
-              <Minimize size={18} />
-            </button>
-            {renderClock(true)}
-          </div>
-        </div>
-      ) : (
-        <div className="glass-glow" style={{ textAlign: 'center', padding: '1.25rem', position: 'relative', overflow: 'visible' }}>
-          {/* Top buttons - positioned inside card, not overlapping outside */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.4rem', marginBottom: '0.75rem' }}>
-            {mode === 'pomodoro' && !startTime && (
-              <button onClick={() => setShowSettings(!showSettings)} style={{ background: 'var(--surface)', border: '1px solid var(--surface-border)', color: 'var(--text-secondary)', width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                <Settings2 size={14} />
-              </button>
-            )}
-            <button onClick={() => setFullscreen(true)} style={{ background: 'var(--surface)', border: '1px solid var(--surface-border)', color: 'var(--text-secondary)', width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-              <Maximize size={14} />
-            </button>
-          </div>
+  // Pomodoro phase label
+  const phaseLabel = pomPhase === 'work' ? `Focus #${pomCount + 1}` : pomPhase === 'shortBreak' ? 'Short Break' : 'Long Break'
 
-          {/* Mode Toggle */}
-          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button className={mode === 'focus' ? 'btn-primary' : 'btn-secondary'} style={{ padding: '0.45rem 1rem', fontSize: '0.8rem' }} onClick={() => { setMode('focus'); if (!startTime) { setElapsed(0) } }}>
-              <Zap size={14} /> Focus
-            </button>
-            <button className={mode === 'pomodoro' ? 'btn-primary' : 'btn-secondary'} style={{ padding: '0.45rem 1rem', fontSize: '0.8rem' }} onClick={() => { setMode('pomodoro'); if (!startTime) setPomRemaining(pomTimes.work) }}>
-              <Coffee size={14} /> Pomodoro
-            </button>
-          </div>
-
-          {/* Pomodoro Settings */}
-          {showSettings && (
-            <div style={{ background: 'var(--surface)', border: '1px solid var(--surface-border)', borderRadius: '12px', padding: '1rem', marginBottom: '1rem', textAlign: 'left' }}>
-              <h4 style={{ margin: '0 0 0.75rem', fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Settings</h4>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                <div>
-                  <label style={{ fontSize: '0.65rem' }}>Work (min)</label>
-                  <input type="number" min={1} max={120} value={workMin} onChange={(e) => setWorkMin(Number(e.target.value))} style={{ width: '100%', padding: '0.4rem', textAlign: 'center', fontWeight: 700 }} />
-                </div>
-                <div>
-                  <label style={{ fontSize: '0.65rem' }}>Break (min)</label>
-                  <input type="number" min={1} max={60} value={shortBreakMin} onChange={(e) => setShortBreakMin(Number(e.target.value))} style={{ width: '100%', padding: '0.4rem', textAlign: 'center', fontWeight: 700 }} />
-                </div>
-                <div>
-                  <label style={{ fontSize: '0.65rem' }}>Long break (min)</label>
-                  <input type="number" min={1} max={60} value={longBreakMin} onChange={(e) => setLongBreakMin(Number(e.target.value))} style={{ width: '100%', padding: '0.4rem', textAlign: 'center', fontWeight: 700 }} />
-                </div>
-                <div>
-                  <label style={{ fontSize: '0.65rem' }}>Sessions before long</label>
-                  <input type="number" min={1} max={10} value={sessionsBeforeLong} onChange={(e) => setSessionsBeforeLong(Number(e.target.value))} style={{ width: '100%', padding: '0.4rem', textAlign: 'center', fontWeight: 700 }} />
-                </div>
-              </div>
-              <button className="btn-primary" onClick={savePomSettings} style={{ width: '100%', marginTop: '0.75rem', padding: '0.5rem', fontSize: '0.8rem' }}>Save</button>
-            </div>
-          )}
-
-          {/* Category pills */}
-          <div style={{ display: 'flex', gap: '0.35rem', marginBottom: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-            <button onClick={() => setSelectedCat('')} disabled={!!startTime} className={!selectedCat ? 'btn-primary' : 'btn-secondary'} style={{ padding: '0.35rem 0.7rem', fontSize: '0.7rem', opacity: startTime ? 0.5 : 1 }}>All</button>
-            {categories.map((c: any) => (
-              <button key={c.id} onClick={() => setSelectedCat(c.id)} disabled={!!startTime} className={selectedCat === c.id ? 'btn-primary' : 'btn-secondary'}
-                style={{ padding: '0.35rem 0.7rem', fontSize: '0.7rem', opacity: startTime ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <div style={{ width: 6, height: 6, borderRadius: '50%', background: c.color }} /> {c.name}
-              </button>
-            ))}
-          </div>
-
-          {renderClock(false)}
-        </div>
-      )}
-
-      {/* Save Modal - always outside fullscreen, with solid background */}
-      {showModal && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
-          onClick={() => { setShowModal(false); setStoppedData(null) }}>
-          <div onClick={(e) => e.stopPropagation()} style={{
-            width: '100%', maxWidth: '420px', padding: '2rem',
-            background: 'var(--bg-primary)', border: '1px solid var(--surface-border)',
-            borderRadius: '20px', boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h2 style={{ margin: 0, fontSize: '1.1rem' }}>Session Complete 🎯</h2>
-              <button onClick={() => { setShowModal(false); setStoppedData(null) }} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}><X size={18} /></button>
-            </div>
-            <div style={{ fontSize: '2.2rem', fontFamily: 'var(--font-mono)', fontWeight: 900, marginBottom: '1.25rem', color: 'var(--accent-primary)', textAlign: 'center' }}>
-              {stoppedData && `${formatTime(stoppedData.durationSeconds).h}:${formatTime(stoppedData.durationSeconds).m}:${formatTime(stoppedData.durationSeconds).s}`}
-            </div>
-
-            {/* Category picker in modal */}
-            <div style={{ marginBottom: '1rem' }}>
-              <label style={{ fontSize: '0.75rem' }}>Category</label>
-              <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', marginTop: '0.35rem' }}>
-                <button onClick={() => setModalCat('')} className={!modalCat ? 'btn-primary' : 'btn-secondary'} style={{ padding: '0.35rem 0.7rem', fontSize: '0.7rem' }}>None</button>
-                {categories.map((c: any) => (
-                  <button key={c.id} onClick={() => setModalCat(c.id)} className={modalCat === c.id ? 'btn-primary' : 'btn-secondary'}
-                    style={{ padding: '0.35rem 0.7rem', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: c.color }} /> {c.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div style={{ marginBottom: '1.25rem' }}>
-              <label style={{ fontSize: '0.75rem' }}>Description (optional)</label>
-              <input type="text" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="What did you work on?" autoFocus style={{ marginTop: '0.35rem' }} />
-            </div>
-            <div style={{ display: 'flex', gap: '0.75rem' }}>
-              <button className="btn-primary" style={{ flex: 1, padding: '0.75rem' }} onClick={handleSaveEntry}>Save</button>
-              <button className="btn-secondary" style={{ flex: 1, padding: '0.75rem' }} onClick={() => { setShowModal(false); setStoppedData(null) }}>Discard</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  )
-
-  function renderClock(isFull: boolean) {
-    const size = isFull ? 300 : 220
+  function renderTimer(isFull: boolean) {
+    const size = isFull ? 280 : 200
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <div style={{ position: 'relative', width: size, height: size, maxWidth: '75vw', marginBottom: '1.5rem' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.25rem' }}>
+        {/* Clock ring */}
+        <div style={{ position: 'relative', width: size, height: size, maxWidth: '70vw' }}>
           <svg style={{ position: 'absolute', inset: 0, transform: 'rotate(-90deg)', width: '100%', height: '100%' }} viewBox="0 0 300 300">
-            <circle cx="150" cy="150" r="140" fill="none" stroke="var(--surface-border)" strokeWidth="3" />
-            {mode === 'pomodoro' && startTime && (
+            <circle cx="150" cy="150" r="140" fill="none" stroke="var(--surface-border)" strokeWidth="3" opacity="0.3" />
+            {mode === 'pomodoro' && running && (
+              <circle cx="150" cy="150" r="140" fill="none" stroke={accentColor} strokeWidth="4"
+                strokeDasharray={circumference} strokeDashoffset={dashOffset}
+                strokeLinecap="round" style={{ transition: 'stroke-dashoffset 0.3s linear', filter: `drop-shadow(0 0 6px ${accentColor})` }} />
+            )}
+            {mode === 'focus' && running && (
               <circle cx="150" cy="150" r="140" fill="none" stroke={accentColor} strokeWidth="3"
-                strokeDasharray={circumference} strokeDashoffset={circumference - (circumference * pomProgress / 100)}
-                strokeLinecap="round" style={{ transition: 'stroke-dashoffset 1s linear' }} />
+                strokeLinecap="round" style={{ animation: 'ringPulse 3s ease-in-out infinite', opacity: 0.5 }} />
             )}
           </svg>
           <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px' }}>
-              {['h', 'm', 's'].map((unit, idx) => (
-                <div key={unit} style={{ display: 'flex', alignItems: 'baseline' }}>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: isFull ? 'clamp(2.5rem, 8vw, 4rem)' : 'clamp(1.8rem, 6vw, 2.8rem)', fontWeight: 800, color: startTime ? accentColor : 'var(--text-primary)', lineHeight: 1 }}>
-                    {(timeObj as any)[unit]}
-                  </span>
-                  {idx < 2 && <span style={{ fontSize: isFull ? '2rem' : '1.5rem', color: accentColor, opacity: 0.4 }}>:</span>}
-                </div>
-              ))}
-            </div>
-            {mode === 'pomodoro' && startTime && (
-              <div style={{ marginTop: '0.5rem', fontSize: '0.7rem', color: accentColor, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                {pomPhase === 'work' ? `Focus #${pomCount + 1}` : pomPhase === 'shortBreak' ? 'Short Break' : 'Long Break'}
-              </div>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: isFull ? 'clamp(2.2rem, 7vw, 3.5rem)' : 'clamp(1.6rem, 5vw, 2.5rem)', fontWeight: 800, color: running ? accentColor : 'var(--text-primary)', lineHeight: 1, letterSpacing: '0.02em' }}>
+              {displayTime}
+            </span>
+            {mode === 'pomodoro' && running && (
+              <span style={{ marginTop: '0.4rem', fontSize: '0.65rem', color: accentColor, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>{phaseLabel}</span>
             )}
-            {!startTime && <div style={{ marginTop: '0.5rem', fontSize: '0.7rem', color: 'var(--text-tertiary)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>Ready</div>}
+            {!running && (
+              <span style={{ marginTop: '0.4rem', fontSize: '0.65rem', color: 'var(--text-tertiary)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                {mode === 'pomodoro' ? phaseLabel : 'Ready'}
+              </span>
+            )}
+            {paused && <span style={{ marginTop: '0.25rem', fontSize: '0.6rem', color: '#ffbe0b', fontWeight: 700, animation: 'gentlePulse 1.5s infinite' }}>PAUSED</span>}
           </div>
         </div>
 
+        {/* Controls */}
         <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-          {!startTime ? (
-            <button className="btn-primary" onClick={handleStart} style={{ padding: '0.8rem 2rem', fontSize: '0.95rem' }}>
+          {!running ? (
+            <button className="btn-primary" onPointerDown={handleStart} style={{ padding: '0.7rem 2rem', fontSize: '0.9rem', touchAction: 'manipulation' }}>
               <Play size={18} /> Start
             </button>
           ) : (
             <>
-              <button className="btn-secondary" onClick={handleStop} style={{ padding: '0.7rem 1.5rem', fontSize: '0.85rem', borderColor: 'rgba(255,0,85,0.4)', color: '#ff5577' }}>
-                <Square size={16} /> Stop
-              </button>
-              {mode === 'focus' && (
-                <button className="btn-secondary" onClick={() => { setStartTime(null); setElapsed(0); localStorage.removeItem('mirror_timer') }} style={{ padding: '0.7rem 1.5rem', fontSize: '0.85rem' }}>
-                  <RotateCcw size={16} /> Reset
+              {paused ? (
+                <button className="btn-primary" onPointerDown={handleResume} style={{ padding: '0.6rem 1.3rem', fontSize: '0.85rem', touchAction: 'manipulation' }}>
+                  <Play size={16} /> Resume
+                </button>
+              ) : (
+                <button className="btn-secondary" onPointerDown={handlePause} style={{ padding: '0.6rem 1.3rem', fontSize: '0.85rem', borderColor: '#ffbe0b44', color: '#ffbe0b', touchAction: 'manipulation' }}>
+                  <Pause size={16} /> Pause
                 </button>
               )}
+              <button className="btn-secondary" onPointerDown={handleStop} style={{ padding: '0.6rem 1.3rem', fontSize: '0.85rem', borderColor: 'rgba(255,0,85,0.4)', color: '#ff5577', touchAction: 'manipulation' }}>
+                <Square size={16} /> Stop
+              </button>
+              <button className="btn-secondary" onPointerDown={handleReset} style={{ padding: '0.6rem 1.3rem', fontSize: '0.85rem', touchAction: 'manipulation' }}>
+                <RotateCcw size={16} />
+              </button>
             </>
           )}
         </div>
       </div>
     )
   }
+
+  return (
+    <>
+      {/* Fullscreen overlay - covers EVERYTHING including sidebar/hamburger */}
+      {fullscreen && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 99999, background: 'var(--bg-primary)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          <button onPointerDown={() => setFullscreen(false)} style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'var(--surface)', border: '1px solid var(--surface-border)', color: 'var(--text-secondary)', width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 10, touchAction: 'manipulation' }}>
+            <Minimize size={16} />
+          </button>
+          {mode === 'pomodoro' && <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '1rem' }}>Pomodoro — {phaseLabel}</div>}
+          {renderTimer(true)}
+        </div>
+      )}
+
+      {/* Normal card */}
+      {!fullscreen && (
+        <div className="glass-glow" style={{ padding: '1.25rem', position: 'relative' }}>
+          {/* Top bar */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+            <div style={{ display: 'flex', gap: '0.4rem' }}>
+              <button className={mode === 'focus' ? 'btn-primary' : 'btn-secondary'} style={{ padding: '0.35rem 0.8rem', fontSize: '0.75rem' }} onPointerDown={() => { if (!running) setMode('focus') }}>
+                <Zap size={12} /> Focus
+              </button>
+              <button className={mode === 'pomodoro' ? 'btn-primary' : 'btn-secondary'} style={{ padding: '0.35rem 0.8rem', fontSize: '0.75rem' }} onPointerDown={() => { if (!running) setMode('pomodoro') }}>
+                <Coffee size={12} /> Pomodoro
+              </button>
+            </div>
+            <div style={{ display: 'flex', gap: '0.3rem' }}>
+              {mode === 'pomodoro' && !running && (
+                <button onPointerDown={() => setShowSettings(!showSettings)} style={{ background: 'var(--surface)', border: '1px solid var(--surface-border)', color: 'var(--text-secondary)', width: 30, height: 30, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', touchAction: 'manipulation' }}>
+                  <Settings2 size={13} />
+                </button>
+              )}
+              <button onPointerDown={() => setFullscreen(true)} style={{ background: 'var(--surface)', border: '1px solid var(--surface-border)', color: 'var(--text-secondary)', width: 30, height: 30, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', touchAction: 'manipulation' }}>
+                <Maximize size={13} />
+              </button>
+            </div>
+          </div>
+
+          {/* Settings panel */}
+          {showSettings && (
+            <div style={{ background: 'var(--surface)', border: '1px solid var(--surface-border)', borderRadius: '10px', padding: '0.75rem', marginBottom: '0.75rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem' }}>
+                <div><label style={{ fontSize: '0.6rem' }}>Work (min)</label><input type="number" min={1} max={120} value={workMin} onChange={(e) => setWorkMin(Number(e.target.value))} style={{ width: '100%', padding: '0.35rem', textAlign: 'center', fontWeight: 700, fontSize: '0.9rem' }} /></div>
+                <div><label style={{ fontSize: '0.6rem' }}>Break (min)</label><input type="number" min={1} max={60} value={shortBreakMin} onChange={(e) => setShortBreakMin(Number(e.target.value))} style={{ width: '100%', padding: '0.35rem', textAlign: 'center', fontWeight: 700, fontSize: '0.9rem' }} /></div>
+                <div><label style={{ fontSize: '0.6rem' }}>Long break</label><input type="number" min={1} max={60} value={longBreakMin} onChange={(e) => setLongBreakMin(Number(e.target.value))} style={{ width: '100%', padding: '0.35rem', textAlign: 'center', fontWeight: 700, fontSize: '0.9rem' }} /></div>
+                <div><label style={{ fontSize: '0.6rem' }}>Sessions</label><input type="number" min={1} max={10} value={sessionsBeforeLong} onChange={(e) => setSessionsBeforeLong(Number(e.target.value))} style={{ width: '100%', padding: '0.35rem', textAlign: 'center', fontWeight: 700, fontSize: '0.9rem' }} /></div>
+              </div>
+              <button className="btn-primary" onPointerDown={savePomSettings} style={{ width: '100%', marginTop: '0.5rem', padding: '0.4rem', fontSize: '0.75rem' }}>Save</button>
+            </div>
+          )}
+
+          {/* Category pills */}
+          <div style={{ display: 'flex', gap: '0.3rem', marginBottom: '0.75rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+            <button onPointerDown={() => { if (!running) setSelectedCat('') }} className={!selectedCat ? 'btn-primary' : 'btn-secondary'} style={{ padding: '0.3rem 0.6rem', fontSize: '0.65rem', opacity: running ? 0.5 : 1, touchAction: 'manipulation' }}>All</button>
+            {categories.map((c: any) => (
+              <button key={c.id} onPointerDown={() => { if (!running) setSelectedCat(c.id) }} className={selectedCat === c.id ? 'btn-primary' : 'btn-secondary'}
+                style={{ padding: '0.3rem 0.6rem', fontSize: '0.65rem', opacity: running ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: '3px', touchAction: 'manipulation' }}>
+                <div style={{ width: 5, height: 5, borderRadius: '50%', background: c.color }} /> {c.name}
+              </button>
+            ))}
+          </div>
+
+          {renderTimer(false)}
+        </div>
+      )}
+
+      {/* Save Modal */}
+      {showModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100000, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
+          onPointerDown={() => { setShowModal(false) }}>
+          <div onPointerDown={(e) => e.stopPropagation()} style={{
+            width: '100%', maxWidth: '400px', padding: '1.5rem',
+            background: 'var(--bg-primary)', border: '1px solid var(--surface-border)',
+            borderRadius: '16px', boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <h2 style={{ margin: 0, fontSize: '1rem' }}>Session Complete 🎯</h2>
+              <button onPointerDown={() => setShowModal(false)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', touchAction: 'manipulation' }}><X size={16} /></button>
+            </div>
+            <div style={{ fontSize: '2rem', fontFamily: 'var(--font-mono)', fontWeight: 900, marginBottom: '1rem', color: 'var(--accent-primary)', textAlign: 'center' }}>
+              {formatTime(stoppedDuration)}
+            </div>
+            <div style={{ marginBottom: '0.75rem' }}>
+              <label style={{ fontSize: '0.7rem' }}>Category</label>
+              <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap', marginTop: '0.25rem' }}>
+                <button onPointerDown={() => setModalCat('')} className={!modalCat ? 'btn-primary' : 'btn-secondary'} style={{ padding: '0.25rem 0.5rem', fontSize: '0.65rem', touchAction: 'manipulation' }}>None</button>
+                {categories.map((c: any) => (
+                  <button key={c.id} onPointerDown={() => setModalCat(c.id)} className={modalCat === c.id ? 'btn-primary' : 'btn-secondary'}
+                    style={{ padding: '0.25rem 0.5rem', fontSize: '0.65rem', display: 'flex', alignItems: 'center', gap: '3px', touchAction: 'manipulation' }}>
+                    <div style={{ width: 5, height: 5, borderRadius: '50%', background: c.color }} /> {c.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ fontSize: '0.7rem' }}>Description</label>
+              <input type="text" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="What did you work on?" autoFocus style={{ marginTop: '0.25rem' }} />
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button className="btn-primary" style={{ flex: 1, padding: '0.6rem' }} onPointerDown={handleSaveEntry}>Save</button>
+              <button className="btn-secondary" style={{ flex: 1, padding: '0.6rem' }} onPointerDown={() => setShowModal(false)}>Discard</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
 }

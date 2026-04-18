@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { BarChart3, PieChart, TrendingUp, Calendar, Clock, ChevronDown } from 'lucide-react'
 
-type DayData = { date: string; totalSeconds: number; categories: { name: string; color: string; seconds: number }[] }
+type EntryData = { description: string; seconds: number; category: string; color: string; time: string }
+type DayData = { date: string; totalSeconds: number; categories: { name: string; color: string; seconds: number }[]; entries: EntryData[] }
 type CatTotal = { name: string; color: string; seconds: number }
 
 export default function AnalyticsClient({ data7, data30, categories }: {
@@ -21,7 +22,10 @@ export default function AnalyticsClient({ data7, data30, categories }: {
   const fmtDuration = (s: number) => {
     const h = Math.floor(s / 3600)
     const m = Math.floor((s % 3600) / 60)
-    return h > 0 ? `${h}h ${m}m` : `${m}m`
+    const sec = s % 60
+    if (h > 0) return `${h}h ${m}m`
+    if (m > 0) return `${m}m ${sec}s`
+    return `${sec}s`
   }
 
   const avgSeconds = data.totalSeconds / data.dailyData.length || 0
@@ -75,7 +79,7 @@ export default function AnalyticsClient({ data7, data30, categories }: {
         </div>
       </div>
 
-      {/* Bar Chart - Daily Hours */}
+      {/* Bar Chart */}
       <div className="glass reveal-up" style={{ '--reveal-delay': '120ms', padding: '1.5rem' } as React.CSSProperties}>
         <h3 style={{ marginBottom: '1.25rem', fontSize: '0.85rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
           <BarChart3 size={16} /> Daily Hours
@@ -110,12 +114,10 @@ export default function AnalyticsClient({ data7, data30, categories }: {
         <h3 style={{ marginBottom: '1.25rem', fontSize: '0.85rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
           <PieChart size={16} /> Category Breakdown
         </h3>
-
         {data.categoryTotals.length === 0 ? (
           <p className="text-secondary" style={{ textAlign: 'center', padding: '2rem 0' }}>No data yet. Start tracking to see your breakdown.</p>
         ) : (
           <>
-            {/* Visual ring */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '2rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
               <div style={{ position: 'relative', width: 140, height: 140 }}>
                 <svg viewBox="0 0 36 36" style={{ width: '100%', height: '100%', transform: 'rotate(-90deg)' }}>
@@ -136,7 +138,6 @@ export default function AnalyticsClient({ data7, data30, categories }: {
                   <span style={{ fontSize: '0.6rem', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>hours</span>
                 </div>
               </div>
-
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 {data.categoryTotals.map((cat, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -148,8 +149,6 @@ export default function AnalyticsClient({ data7, data30, categories }: {
                 ))}
               </div>
             </div>
-
-            {/* Category bars */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               {data.categoryTotals.map((cat, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -194,15 +193,28 @@ export default function AnalyticsClient({ data7, data30, categories }: {
                 </button>
                 {isExpanded && (
                   <div style={{ background: 'var(--surface)', border: '1px solid var(--surface-border)', borderTop: 'none', borderRadius: '0 0 10px 10px', padding: '0.75rem' }}>
-                    {day.categories.length === 0 ? (
+                    {day.entries.length === 0 ? (
                       <p className="text-secondary" style={{ fontSize: '0.8rem', textAlign: 'center', padding: '0.5rem 0' }}>No entries this day.</p>
                     ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                        {day.categories.map((cat, i) => (
-                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <div style={{ width: 6, height: 6, borderRadius: '50%', background: cat.color }} />
-                            <span style={{ fontSize: '0.8rem', flex: 1 }}>{cat.name}</span>
-                            <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>{fmtDuration(cat.seconds)}</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        {/* Category summary */}
+                        {day.categories.length > 0 && (
+                          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.25rem' }}>
+                            {day.categories.map((cat, i) => (
+                              <span key={i} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.65rem', padding: '0.2rem 0.5rem', background: `${cat.color}18`, border: `1px solid ${cat.color}40`, borderRadius: '6px', color: cat.color, fontWeight: 600 }}>
+                                <span style={{ width: 5, height: 5, borderRadius: '50%', background: cat.color }} />
+                                {cat.name}: {fmtDuration(cat.seconds)}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {/* Individual entries */}
+                        {day.entries.map((entry, i) => (
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.5rem', background: 'var(--bg-primary)', borderRadius: '8px', border: '1px solid var(--surface-border)' }}>
+                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--text-tertiary)', minWidth: 38 }}>{entry.time}</span>
+                            <div style={{ width: 4, height: 4, borderRadius: '50%', background: entry.color, flexShrink: 0 }} />
+                            <span style={{ fontSize: '0.8rem', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.description}</span>
+                            <span style={{ fontSize: '0.7rem', fontFamily: 'var(--font-mono)', color: 'var(--accent-primary)', fontWeight: 600, flexShrink: 0 }}>{fmtDuration(entry.seconds)}</span>
                           </div>
                         ))}
                       </div>
@@ -217,3 +229,4 @@ export default function AnalyticsClient({ data7, data30, categories }: {
     </div>
   )
 }
+

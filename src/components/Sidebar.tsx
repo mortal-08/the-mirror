@@ -7,10 +7,9 @@ import { useState, useEffect, createContext, useContext } from 'react'
 import { useTheme } from './ThemeProvider'
 import {
   LayoutDashboard, Timer, History, Settings, LogOut,
-  Menu, X, BookOpen, Moon, Sun, Orbit, PanelLeftClose, PanelLeft, BarChart3
+  BookOpen, Moon, Sun, Orbit, PanelLeftClose, PanelLeft, BarChart3
 } from 'lucide-react'
 
-// Sidebar context so other components can read collapsed state
 const SidebarContext = createContext<{ collapsed: boolean; setCollapsed: (v: boolean) => void }>({ collapsed: false, setCollapsed: () => {} })
 export const useSidebar = () => useContext(SidebarContext)
 export { SidebarContext }
@@ -27,11 +26,11 @@ const NAV_ITEMS = [
 export default function Sidebar() {
   const pathname = usePathname()
   const { data: session } = useSession()
-  const [mobileOpen, setMobileOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
   const { theme, setTheme } = useTheme()
   const isLight = theme === 'light'
   const [clock, setClock] = useState('')
+  const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
     const tick = () => setClock(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }))
@@ -40,7 +39,13 @@ export default function Sidebar() {
     return () => clearInterval(i)
   }, [])
 
-  // Save collapsed preference
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth <= 900)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+
   useEffect(() => {
     const saved = localStorage.getItem('mirror_sidebar_collapsed')
     if (saved === 'true') setCollapsed(true)
@@ -51,41 +56,48 @@ export default function Sidebar() {
 
   if (!session) return null
 
-  const sidebarWidth = collapsed ? '72px' : '260px'
+  // On mobile, always show full sidebar (never collapsed)
+  const isCollapsed = isMobile ? false : collapsed
+  const sidebarWidth = isCollapsed ? '72px' : '260px'
+
+  const closeMobile = () => {
+    document.querySelector('.sidebar')?.classList.remove('open')
+  }
 
   return (
-    <SidebarContext.Provider value={{ collapsed, setCollapsed }}>
-      {/* Sidebar */}
+    <SidebarContext.Provider value={{ collapsed: isCollapsed, setCollapsed }}>
       <aside
-        className={`sidebar ${mobileOpen ? 'open' : ''}`}
+        className="sidebar"
         style={{
           width: sidebarWidth,
           transition: 'width 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s ease',
-          padding: collapsed ? '1.5rem 0.75rem' : '1.5rem 1.25rem',
+          padding: isCollapsed ? '1.5rem 0.75rem' : '1.5rem 1.25rem',
           overflow: 'hidden',
         }}
       >
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '0.25rem', justifyContent: collapsed ? 'center' : 'flex-start' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '0.25rem', justifyContent: isCollapsed ? 'center' : 'flex-start' }}>
           <Orbit size={22} color="var(--accent-primary)" style={{ flexShrink: 0 }} />
-          {!collapsed && <span className="sidebar-logo" style={{ fontSize: '1.5rem', marginBottom: 0 }}>The Mirror</span>}
+          {!isCollapsed && <span className="sidebar-logo" style={{ fontSize: '1.5rem', marginBottom: 0 }}>The Mirror</span>}
         </div>
-        {!collapsed && <div className="sidebar-tagline" style={{ marginBottom: '1.5rem' }}>Time Intelligence</div>}
+        {!isCollapsed && <div className="sidebar-tagline" style={{ marginBottom: '1.5rem' }}>Time Intelligence</div>}
 
-        {/* Collapse toggle */}
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            width: '100%', padding: '0.6rem', borderRadius: '10px', marginBottom: '0.75rem',
-            background: 'var(--surface)', border: '1px solid var(--surface-border)',
-            color: 'var(--text-secondary)', cursor: 'pointer', transition: 'all 0.2s',
-            gap: '0.5rem', fontSize: '0.8rem'
-          }}
-          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          {collapsed ? <PanelLeft size={18} /> : <><PanelLeftClose size={18} /> <span>Collapse</span></>}
-        </button>
+        {/* Collapse toggle - hidden on mobile */}
+        {!isMobile && (
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: '100%', padding: '0.6rem', borderRadius: '10px', marginBottom: '0.75rem',
+              background: 'var(--surface)', border: '1px solid var(--surface-border)',
+              color: 'var(--text-secondary)', cursor: 'pointer', transition: 'all 0.2s',
+              gap: '0.5rem', fontSize: '0.8rem'
+            }}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {collapsed ? <PanelLeft size={18} /> : <><PanelLeftClose size={18} /> <span>Collapse</span></>}
+          </button>
+        )}
 
         {/* Nav */}
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', flex: 1, marginTop: '0.5rem' }}>
@@ -97,12 +109,12 @@ export default function Sidebar() {
                 key={item.href}
                 href={item.href}
                 className={`sidebar-link ${isActive ? 'active' : ''}`}
-                onClick={() => { setMobileOpen(false); document.querySelector('.sidebar')?.classList.remove('open') }}
-                title={collapsed ? item.label : undefined}
-                style={{ justifyContent: collapsed ? 'center' : 'flex-start', padding: collapsed ? '0.85rem' : '0.85rem 1rem' }}
+                onClick={closeMobile}
+                title={isCollapsed ? item.label : undefined}
+                style={{ justifyContent: isCollapsed ? 'center' : 'flex-start', padding: isCollapsed ? '0.85rem' : '0.85rem 1rem' }}
               >
                 <Icon size={20} />
-                {!collapsed && <span style={{ fontSize: '0.9rem', letterSpacing: '0.02em' }}>{item.label}</span>}
+                {!isCollapsed && <span style={{ fontSize: '0.9rem', letterSpacing: '0.02em' }}>{item.label}</span>}
               </Link>
             )
           })}
@@ -110,25 +122,22 @@ export default function Sidebar() {
 
         {/* Bottom */}
         <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {/* Clock + Theme */}
           <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'space-between',
+            display: 'flex', alignItems: 'center', justifyContent: isCollapsed ? 'center' : 'space-between',
             padding: '0.6rem', background: 'var(--surface)', borderRadius: '10px', border: '1px solid var(--surface-border)'
           }}>
-            {!collapsed && (
+            {!isCollapsed && (
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: '1rem', fontWeight: 700, color: 'var(--accent-primary)', letterSpacing: '0.05em' }}>{clock}</span>
             )}
             <button className="btn-icon" onClick={() => setTheme(isLight ? 'dark' : 'light')} style={{ width: 32, height: 32 }}>
               {isLight ? <Moon size={15} /> : <Sun size={15} />}
             </button>
           </div>
-
-          {/* User */}
           <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'space-between',
+            display: 'flex', alignItems: 'center', justifyContent: isCollapsed ? 'center' : 'space-between',
             background: 'var(--surface)', padding: '0.6rem', borderRadius: '10px', border: '1px solid var(--surface-border)'
           }}>
-            {!collapsed && (
+            {!isCollapsed && (
               <div style={{ overflow: 'hidden' }}>
                 <div style={{ fontSize: '0.8rem', fontWeight: 700, whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{session.user?.name}</div>
                 <div className="text-secondary" style={{ fontSize: '0.65rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
