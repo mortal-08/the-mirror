@@ -157,7 +157,7 @@ export default function DashboardClient({ stats, categories, tags, recentEntries
   return (
     <div className="motion-stack">
       {/* ═══ HERO HUB ═══ */}
-      <div className="dashboard-hero reveal-up" style={{ '--reveal-delay': '0ms', position: 'relative', overflow: 'hidden', borderRadius: '24px', padding: '3.5rem 2rem', minHeight: '460px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' } as React.CSSProperties}>
+      <div className="dashboard-hero reveal-up" style={{ '--reveal-delay': '0ms', position: 'relative', overflow: 'hidden', borderRadius: '20px', padding: '2.5rem 1.25rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' } as React.CSSProperties}>
         
         {/* Particles */}
         {particles.map((p, i) => (
@@ -171,25 +171,25 @@ export default function DashboardClient({ stats, categories, tags, recentEntries
 
         {/* Clock */}
         <div style={{ position: 'relative', zIndex: 2 }}>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '4.5rem', fontWeight: 800, letterSpacing: '0.06em', background: 'var(--accent-gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', lineHeight: 1 }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'clamp(2.2rem, 8vw, 4rem)', fontWeight: 800, letterSpacing: '0.04em', background: 'var(--accent-gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', lineHeight: 1 }}>
             {timeStr}
           </div>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', marginTop: '0.5rem' }}>{dateStr}</p>
+          <p style={{ color: 'var(--text-secondary)', fontSize: 'clamp(0.8rem, 2.5vw, 1rem)', marginTop: '0.4rem' }}>{dateStr}</p>
         </div>
 
         {/* Wisdom Quote with Shuffle */}
-        <div style={{ position: 'relative', zIndex: 2, maxWidth: 520, marginTop: '1.25rem', marginBottom: '2.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <div style={{ position: 'relative', zIndex: 2, maxWidth: 460, marginTop: '1rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0 0.5rem' }}>
           <div style={{ flex: 1 }}>
-            <p style={{ fontStyle: 'italic', fontSize: '0.95rem', lineHeight: 1.6, color: 'var(--text-secondary)' }}>"{quote.text}"</p>
-            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-tertiary)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>— {quote.author}</span>
+            <p style={{ fontStyle: 'italic', fontSize: 'clamp(0.8rem, 2.5vw, 0.9rem)', lineHeight: 1.5, color: 'var(--text-secondary)' }}>"{quote.text}"</p>
+            <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-tertiary)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>— {quote.author}</span>
           </div>
-          <button onClick={shuffleQuote} title="New quote" style={{ width: 36, height: 36, borderRadius: '50%', border: '1px solid var(--surface-border)', background: 'var(--surface)', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.3s' }}>
-            <Shuffle size={14} />
+          <button onClick={shuffleQuote} title="New quote" style={{ width: 32, height: 32, borderRadius: '50%', border: '1px solid var(--surface-border)', background: 'var(--surface)', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.3s' }}>
+            <Shuffle size={12} />
           </button>
         </div>
 
         {/* Navigation Orbs */}
-        <div style={{ position: 'relative', zIndex: 2, display: 'flex', gap: '1.75rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+        <div style={{ position: 'relative', zIndex: 2, display: 'flex', gap: 'clamp(0.75rem, 3vw, 1.5rem)', flexWrap: 'wrap', justifyContent: 'center' }}>
           {NAV_ORBS.map((orb) => {
             const Icon = orb.icon
             const isHovered = hoveredOrb === orb.href
@@ -197,19 +197,19 @@ export default function DashboardClient({ stats, categories, tags, recentEntries
               <button key={orb.href} onClick={() => router.push(orb.href)}
                 onMouseEnter={() => setHoveredOrb(orb.href)} onMouseLeave={() => setHoveredOrb(null)}
                 className="nav-orb" style={{
-                  width: orb.size, height: orb.size, borderRadius: '50%',
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                  width: 'clamp(60px, 15vw, 85px)', height: 'clamp(60px, 15vw, 85px)', borderRadius: '50%',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px',
                   background: isHovered ? `${orb.color}18` : 'var(--surface)',
                   border: `2px solid ${isHovered ? orb.color : 'var(--surface-border)'}`,
                   cursor: 'pointer', transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
-                  transform: isHovered ? 'scale(1.18) translateY(-10px)' : 'scale(1)',
-                  boxShadow: isHovered ? `0 16px 50px ${orb.color}35, 0 0 25px ${orb.color}15` : 'var(--shadow-sm)',
+                  transform: isHovered ? 'scale(1.12) translateY(-6px)' : 'scale(1)',
+                  boxShadow: isHovered ? `0 12px 40px ${orb.color}30` : 'var(--shadow-sm)',
                   animation: `orbFloat 3s ease-in-out ${NAV_ORBS.indexOf(orb) * 0.4}s infinite alternate`,
                   color: isHovered ? orb.color : 'var(--text-secondary)',
                   fontFamily: 'var(--font-sans)',
                 }}>
-                <Icon size={orb.size > 90 ? 28 : 22} />
-                <span style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{orb.label}</span>
+                <Icon size={20} />
+                <span style={{ fontSize: '0.55rem', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>{orb.label}</span>
               </button>
             )
           })}

@@ -54,21 +54,6 @@ export default function Sidebar() {
 
   return (
     <SidebarContext.Provider value={{ collapsed, setCollapsed }}>
-      {/* Mobile hamburger */}
-      <button
-        className="mobile-hamburger"
-        onClick={() => setMobileOpen(!mobileOpen)}
-        style={{
-          position: 'fixed', top: '1rem', left: '1rem', zIndex: 200,
-          width: 44, height: 44, borderRadius: '12px', display: 'none',
-          alignItems: 'center', justifyContent: 'center',
-          background: 'var(--surface)', border: '1px solid var(--surface-border)',
-          color: 'var(--text-primary)', cursor: 'pointer', boxShadow: 'var(--shadow-sm)'
-        }}
-      >
-        {mobileOpen ? <X size={20} /> : <Menu size={20} />}
-      </button>
-
       {/* Sidebar */}
       <aside
         className={`sidebar ${mobileOpen ? 'open' : ''}`}
