@@ -53,3 +53,27 @@ export async function registerUser(name: string, email: string, password: string
     return { error: 'Something went wrong. Please try again.' }
   }
 }
+
+export async function changePassword(currentPassword: string, newPassword: string) {
+  try {
+    const { getUserId } = await import('@/lib/auth')
+    const userId = await getUserId()
+    if (!userId) return { error: 'Not authenticated.' }
+
+    const user = await prisma.user.findUnique({ where: { id: userId } })
+    if (!user) return { error: 'User not found.' }
+
+    const valid = await bcrypt.compare(currentPassword, user.passwordHash)
+    if (!valid) return { error: 'Current password is incorrect.' }
+
+    if (newPassword.length < 6) return { error: 'New password must be at least 6 characters.' }
+
+    const newHash = await bcrypt.hash(newPassword, 12)
+    await prisma.user.update({ where: { id: userId }, data: { passwordHash: newHash } })
+
+    return { success: true }
+  } catch (error) {
+    console.error('Change password error:', error)
+    return { error: 'Something went wrong. Please try again.' }
+  }
+}

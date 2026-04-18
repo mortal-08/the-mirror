@@ -4,23 +4,17 @@ import { useState } from 'react'
 import { createTimeEntry } from '@/actions/timeEntries'
 import { createCategory } from '@/actions/categories'
 import { useToast } from '@/components/ToastProvider'
-import { Plus, Clock } from 'lucide-react'
+import { Plus, Clock, Calendar } from 'lucide-react'
 
 export default function ManualEntryForm({ categories, tags }: { categories: any[]; tags: any[] }) {
   const { toast } = useToast()
   const [description, setDescription] = useState('')
-  const [startTime, setStartTime] = useState('')
-  const [endTime, setEndTime] = useState('')
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+  const [hours, setHours] = useState(0)
+  const [minutes, setMinutes] = useState(30)
   const [categoryId, setCategoryId] = useState('')
   const [newCatName, setNewCatName] = useState('')
-  const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
-
-  const toggleTag = (id: string) => {
-    setSelectedTags((prev) =>
-      prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]
-    )
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -35,104 +29,138 @@ export default function ManualEntryForm({ categories, tags }: { categories: any[
         setNewCatName('')
       }
 
-      const start = new Date(startTime)
-      const end = new Date(endTime)
-      const durationSeconds = Math.floor((end.getTime() - start.getTime()) / 1000)
-
-      if (durationSeconds <= 0) {
-        toast('End time must be after start time!', 'error')
+      const totalSeconds = (hours * 3600) + (minutes * 60)
+      if (totalSeconds <= 0) {
+        toast('Duration must be greater than 0!', 'error')
         setLoading(false)
         return
       }
 
+      // Calculate end time from chosen date + current time - duration
+      const now = new Date()
+      const endTime = new Date(`${date}T${now.toTimeString().split(' ')[0]}`)
+      const startTime = new Date(endTime.getTime() - totalSeconds * 1000)
+
       await createTimeEntry({
         description: description || undefined,
-        startTime: start,
-        endTime: end,
-        durationSeconds,
+        startTime,
+        endTime,
+        durationSeconds: totalSeconds,
         categoryId: cid || undefined,
-        tagIds: selectedTags.length > 0 ? selectedTags : undefined,
       })
 
-      toast('Time block logged!', 'success')
+      toast('Time entry logged!', 'success')
       setDescription('')
-      setStartTime('')
-      setEndTime('')
+      setHours(0)
+      setMinutes(30)
       setCategoryId('')
-      setSelectedTags([])
     } catch (err) {
       toast('Failed to save entry.', 'error')
     }
     setLoading(false)
   }
 
+  const quickDurations = [
+    { label: '15m', h: 0, m: 15 },
+    { label: '30m', h: 0, m: 30 },
+    { label: '1h', h: 1, m: 0 },
+    { label: '1.5h', h: 1, m: 30 },
+    { label: '2h', h: 2, m: 0 },
+    { label: '3h', h: 3, m: 0 },
+  ]
+
   return (
     <div className="glass">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', marginBottom: 'var(--space-lg)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem' }}>
         <Clock size={20} style={{ color: 'var(--accent-primary)' }} />
-        <h3>Manual Entry</h3>
+        <h3 style={{ margin: 0 }}>Quick Log</h3>
       </div>
 
-      <form onSubmit={handleSubmit} className="flex-col gap-md">
-        <div className="grid-2">
-          <label>
-            <span>Start Time</span>
-            <input required type="datetime-local" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
-          </label>
-          <label>
-            <span>End Time</span>
-            <input required type="datetime-local" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
-          </label>
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        {/* What did you do */}
+        <div>
+          <label>What did you work on?</label>
+          <input type="text" placeholder="e.g., Studied algorithms, Gym workout..." value={description} onChange={(e) => setDescription(e.target.value)} />
         </div>
 
-        <label>
-          <span>Activity</span>
-          <input type="text" placeholder="What were you doing?" value={description} onChange={(e) => setDescription(e.target.value)} />
-        </label>
+        {/* Date */}
+        <div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Calendar size={14} /> Date</label>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button type="button" className={date === new Date().toISOString().split('T')[0] ? 'btn-primary' : 'btn-secondary'}
+              style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
+              onClick={() => setDate(new Date().toISOString().split('T')[0])}>
+              Today
+            </button>
+            <button type="button"
+              className={date === new Date(Date.now() - 86400000).toISOString().split('T')[0] ? 'btn-primary' : 'btn-secondary'}
+              style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
+              onClick={() => setDate(new Date(Date.now() - 86400000).toISOString().split('T')[0])}>
+              Yesterday
+            </button>
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+              style={{ padding: '0.5rem 0.75rem', fontSize: '0.85rem', maxWidth: '160px' }} />
+          </div>
+        </div>
 
-        <div className="grid-2">
-          <label>
-            <span>Category</span>
-            <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-              <option value="">Select category...</option>
-              {categories.map((c: any) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            <span>Or create new</span>
-            <div style={{ display: 'flex', gap: 'var(--space-xs)' }}>
-              <input type="text" placeholder="New category..." value={newCatName} onChange={(e) => setNewCatName(e.target.value)} />
+        {/* Duration - Quick picks */}
+        <div>
+          <label>How long?</label>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+            {quickDurations.map((d) => (
+              <button key={d.label} type="button"
+                className={hours === d.h && minutes === d.m ? 'btn-primary' : 'btn-secondary'}
+                style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
+                onClick={() => { setHours(d.h); setMinutes(d.m) }}>
+                {d.label}
+              </button>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <input type="number" min={0} max={23} value={hours} onChange={(e) => setHours(parseInt(e.target.value) || 0)}
+                style={{ width: '70px', textAlign: 'center', fontSize: '1.2rem', fontFamily: 'var(--font-mono)', padding: '0.75rem' }} />
+              <span className="text-secondary" style={{ fontSize: '0.85rem', fontWeight: 600 }}>hrs</span>
             </div>
-          </label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <input type="number" min={0} max={59} step={5} value={minutes} onChange={(e) => setMinutes(parseInt(e.target.value) || 0)}
+                style={{ width: '70px', textAlign: 'center', fontSize: '1.2rem', fontFamily: 'var(--font-mono)', padding: '0.75rem' }} />
+              <span className="text-secondary" style={{ fontSize: '0.85rem', fontWeight: 600 }}>min</span>
+            </div>
+          </div>
         </div>
 
-        {/* Tags */}
-        {tags.length > 0 && (
+        {/* Category */}
+        <div className="grid-2">
           <div>
-            <span className="text-xs text-secondary" style={{ textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 'var(--space-xs)', display: 'block' }}>Tags</span>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-xs)' }}>
-              {tags.map((tag: any) => (
-                <button
-                  key={tag.id}
-                  type="button"
-                  className={`chip ${selectedTags.includes(tag.id) ? 'active' : ''}`}
-                  onClick={() => toggleTag(tag.id)}
-                  style={selectedTags.includes(tag.id) ? { borderColor: tag.color, background: `${tag.color}22` } : {}}
-                >
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: tag.color }} />
-                  {tag.name}
+            <label>Category</label>
+            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+              <button type="button" className={!categoryId ? 'btn-primary' : 'btn-secondary'}
+                style={{ padding: '0.45rem 0.85rem', fontSize: '0.8rem' }}
+                onClick={() => setCategoryId('')}>
+                None
+              </button>
+              {categories.map((c: any) => (
+                <button key={c.id} type="button"
+                  className={categoryId === c.id ? 'btn-primary' : 'btn-secondary'}
+                  style={{ padding: '0.45rem 0.85rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '5px' }}
+                  onClick={() => setCategoryId(c.id)}>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: c.color }} />
+                  {c.name}
                 </button>
               ))}
             </div>
           </div>
-        )}
+          <div>
+            <label>Or create new</label>
+            <input type="text" placeholder="New category..." value={newCatName} onChange={(e) => setNewCatName(e.target.value)} />
+          </div>
+        </div>
 
         <button type="submit" className="btn-primary w-full" disabled={loading}
-          style={{ marginTop: 'var(--space-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-sm)' }}>
+          style={{ padding: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
           <Plus size={18} />
-          {loading ? 'Saving...' : 'Save Entry'}
+          {loading ? 'Saving...' : 'Log Entry'}
         </button>
       </form>
     </div>

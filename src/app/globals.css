@@ -71,27 +71,110 @@
 }
 
 [data-theme='light'] {
-  --bg-primary: #f8fafc;
+  --bg-primary: #f0f4ff;
   --bg-secondary: #ffffff;
-  --bg-tertiary: #f1f5f9;
+  --bg-tertiary: #f5f3ff;
   
-  --surface: rgba(255, 255, 255, 0.8);
-  --surface-hover: rgba(241, 245, 249, 1);
-  --surface-active: rgba(226, 232, 240, 1);
-  --surface-border: rgba(0, 0, 0, 0.05);
-  --surface-border-hover: rgba(0, 136, 255, 0.2);
+  --surface: rgba(255, 255, 255, 0.9);
+  --surface-hover: rgba(245, 243, 255, 1);
+  --surface-active: rgba(237, 233, 254, 1);
+  --surface-border: rgba(139, 92, 246, 0.1);
+  --surface-border-hover: rgba(139, 92, 246, 0.3);
 
-  --text-primary: #0f172a;
+  --text-primary: #1e1b4b;
   --text-secondary: #475569;
-  --text-tertiary: #64748b;
+  --text-tertiary: #6366f1;
   --text-inverse: #ffffff;
   
-  --accent-primary: #006652; /* Harder green for light visibility */
-  --accent-secondary: #0056b3; 
-  --shadow-sm: 0 4px 16px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 8px 32px rgba(0, 0, 0, 0.08);
-  --shadow-inner: inset 0 2px 10px rgba(0,0,0,0.02);
+  --accent-primary: #7c3aed;
+  --accent-primary-glow: rgba(124, 58, 237, 0.25);
+  --accent-secondary: #2563eb;
+  --accent-tertiary: #06b6d4;
+  --accent-gradient: linear-gradient(135deg, #7c3aed, #2563eb);
+  --accent-gradient-vivid: linear-gradient(135deg, #7c3aed, #2563eb, #06b6d4);
+  --accent-success: #10b981;
+  --accent-warning: #f59e0b;
+  --shadow-sm: 0 4px 20px rgba(124, 58, 237, 0.08);
+  --shadow-md: 0 8px 40px rgba(124, 58, 237, 0.1);
+  --shadow-glow: 0 0 25px rgba(124, 58, 237, 0.15);
+  --shadow-inner: inset 0 2px 10px rgba(124, 58, 237, 0.03);
   color-scheme: light;
+}
+
+/* Light mode animated gradient blobs */
+[data-theme='light'] body::before {
+  background-image: none !important;
+  animation: none !important;
+}
+
+[data-theme='light'] body::after {
+  background: 
+    radial-gradient(ellipse at 20% 20%, rgba(124, 58, 237, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 80%, rgba(37, 99, 235, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, rgba(6, 182, 212, 0.04) 0%, transparent 60%) !important;
+  animation: lightBlobs 20s ease-in-out infinite alternate !important;
+}
+
+@keyframes lightBlobs {
+  0% { opacity: 0.8; }
+  50% { opacity: 1; }
+  100% { opacity: 0.8; }
+}
+
+[data-theme='light'] .glass, [data-theme='light'] .glass-glow {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(139, 92, 246, 0.12);
+  box-shadow: 0 4px 30px rgba(124, 58, 237, 0.06), 0 1px 3px rgba(0,0,0,0.04);
+  backdrop-filter: blur(20px);
+}
+
+[data-theme='light'] .glass:hover, [data-theme='light'] .glass-glow:hover {
+  border-color: rgba(124, 58, 237, 0.25);
+  box-shadow: 0 8px 40px rgba(124, 58, 237, 0.12), 0 2px 6px rgba(0,0,0,0.04);
+  transform: translateY(-2px);
+}
+
+[data-theme='light'] .stat-card {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(139, 92, 246, 0.1);
+  box-shadow: 0 4px 20px rgba(124, 58, 237, 0.06);
+}
+
+[data-theme='light'] .stat-card:hover {
+  box-shadow: 0 12px 40px rgba(124, 58, 237, 0.12);
+}
+
+[data-theme='light'] .progress-fill { box-shadow: 0 0 10px rgba(124, 58, 237, 0.3); }
+
+[data-theme='light'] .sidebar {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-right-color: rgba(139, 92, 246, 0.1);
+  box-shadow: 4px 0 30px rgba(124, 58, 237, 0.05);
+}
+
+[data-theme='light'] .sidebar-link.active {
+  background: rgba(124, 58, 237, 0.08);
+  border-color: rgba(124, 58, 237, 0.15);
+  color: var(--accent-primary);
+}
+
+[data-theme='light'] .sidebar-link.active::before {
+  background: var(--accent-primary);
+  box-shadow: 0 0 10px rgba(124, 58, 237, 0.4);
+}
+
+[data-theme='light'] .btn-primary {
+  background: linear-gradient(135deg, #7c3aed, #6d28d9);
+  color: white;
+  border: none;
+  box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3);
+}
+
+[data-theme='light'] .btn-primary:hover {
+  background: linear-gradient(135deg, #6d28d9, #5b21b6);
+  box-shadow: 0 6px 25px rgba(124, 58, 237, 0.4);
+  transform: translateY(-1px);
 }
 
 /* Base Body Styles */
@@ -706,13 +789,13 @@ label { font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); lette
    RESPONSIVE
    ═══════════════════════════════════════════════ */
 @media (max-width: 900px) {
-  .sidebar { transform: translateX(-100%); }
+  .sidebar { transform: translateX(-100%); position: fixed; width: 260px !important; z-index: 200; }
   .sidebar.open { transform: translateX(0); }
-  .main-content { margin-left: 0; padding: var(--space-lg); }
+  .main-content { margin-left: 0 !important; padding: var(--space-lg); }
   .grid-2, .grid-3 { grid-template-columns: 1fr; }
   .auth-side-visual { display: none; }
   .auth-page-split { flex-direction: column; }
   .page-title { font-size: 1.8rem; }
   .stat-value { font-size: 2.5rem; }
-  .mobile-header { display: flex !important; }
+  .mobile-hamburger { display: flex !important; }
 }
