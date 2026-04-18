@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Activity, Network, Database, Calendar, Quote, Sparkles, BookOpen, ArrowRight, Target, Clock } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Activity, Database, Quote, BookOpen, Target, Clock, Timer, History, Settings, Sparkles } from 'lucide-react'
 import { upsertJournal } from '@/actions/journal'
-import { createTimeEntry } from '@/actions/timeEntries'
 import { useToast } from '@/components/ToastProvider'
 import ManualEntryForm from '@/components/ManualEntryForm'
 import EntryList from '@/components/EntryList'
@@ -25,33 +25,48 @@ const WISDOM_QUOTES = [
 
 const MOODS = ['🔥', '😊', '😐', '😓', '💪', '🧠', '☕', '🌙']
 
+const NAV_ORBS = [
+  { href: '/timer', label: 'Timer', icon: Timer, color: '#7c3aed', delay: 0 },
+  { href: '/journal', label: 'Journal', icon: BookOpen, color: '#2563eb', delay: 0.15 },
+  { href: '/history', label: 'History', icon: History, color: '#06b6d4', delay: 0.3 },
+  { href: '/settings', label: 'Settings', icon: Settings, color: '#10b981', delay: 0.45 },
+]
+
 export default function DashboardClient({ stats, categories, tags, recentEntries, todayJournal }: {
-  stats: any
-  categories: any[]
-  tags: any[]
-  recentEntries: any[]
-  todayJournal: any
+  stats: any; categories: any[]; tags: any[]; recentEntries: any[]; todayJournal: any
 }) {
   const { toast } = useToast()
+  const router = useRouter()
   const [now, setNow] = useState(new Date())
   const [journalText, setJournalText] = useState(todayJournal?.content || '')
   const [journalMood, setJournalMood] = useState(todayJournal?.mood || '')
   const [journalSaving, setJournalSaving] = useState(false)
   const [tomorrowPlan, setTomorrowPlan] = useState('')
+  const [hoveredOrb, setHoveredOrb] = useState<string | null>(null)
+  const [particles, setParticles] = useState<{x: number; y: number; size: number; duration: number; delay: number}[]>([])
 
-  // Load tomorrow plan from localStorage
   useEffect(() => {
     const saved = localStorage.getItem('mirror_tomorrow_plan')
     if (saved) setTomorrowPlan(saved)
   }, [])
 
-  // Live clock
   useEffect(() => {
     const interval = setInterval(() => setNow(new Date()), 1000)
     return () => clearInterval(interval)
   }, [])
 
-  // Daily wisdom (changes daily based on day-of-year)
+  // Generate floating particles
+  useEffect(() => {
+    const p = Array.from({ length: 20 }, () => ({
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      size: Math.random() * 4 + 2,
+      duration: Math.random() * 15 + 10,
+      delay: Math.random() * 5,
+    }))
+    setParticles(p)
+  }, [])
+
   const dayOfYear = Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / 86400000)
   const todayQuote = WISDOM_QUOTES[dayOfYear % WISDOM_QUOTES.length]
 
@@ -61,7 +76,6 @@ export default function DashboardClient({ stats, categories, tags, recentEntries
   const weeklyGoalHours = (stats.weeklyGoal / 3600).toFixed(0)
   const todayPct = Math.min((stats.todaySeconds / stats.dailyGoal) * 100, 100)
   const weekPct = Math.min((stats.weekSeconds / stats.weeklyGoal) * 100, 100)
-  const totalCatSeconds = stats.categoryBreakdown.reduce((a: number, b: any) => a + b.seconds, 0) || 1
 
   const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
   const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
@@ -73,47 +87,84 @@ export default function DashboardClient({ stats, categories, tags, recentEntries
       const today = new Date().toISOString().split('T')[0]
       await upsertJournal(today, journalText, journalMood || undefined)
       toast('Journal saved!', 'success')
-    } catch {
-      toast('Failed to save journal.', 'error')
-    }
+    } catch { toast('Failed to save.', 'error') }
     setJournalSaving(false)
   }
 
   const saveTomorrowPlan = () => {
     localStorage.setItem('mirror_tomorrow_plan', tomorrowPlan)
-    toast('Tomorrow plan saved!', 'success')
+    toast('Plan saved!', 'success')
   }
 
   return (
     <div className="motion-stack">
-      {/* Header with Live Clock */}
-      <div className="reveal-up" style={{ '--reveal-delay': '0ms', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' } as React.CSSProperties}>
-        <div>
-          <h1 className="page-title" style={{ marginBottom: '0.25rem' }}>Command Center</h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>{dateStr}</p>
-        </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '2.5rem', fontWeight: 800, letterSpacing: '0.05em', color: 'var(--accent-primary)' }}>
+      {/* === HERO HUB SECTION with floating particles === */}
+      <div className="dashboard-hero reveal-up" style={{ '--reveal-delay': '0ms', position: 'relative', overflow: 'hidden', borderRadius: '24px', padding: '3rem 2rem', minHeight: '420px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', background: 'var(--hero-bg)', border: '1px solid var(--surface-border)' } as React.CSSProperties}>
+        
+        {/* Animated floating particles */}
+        {particles.map((p, i) => (
+          <div key={i} className="floating-particle" style={{
+            position: 'absolute', left: `${p.x}%`, top: `${p.y}%`,
+            width: p.size, height: p.size, borderRadius: '50%',
+            background: 'var(--accent-primary)', opacity: 0.15,
+            animation: `particleFloat ${p.duration}s ease-in-out ${p.delay}s infinite alternate`,
+            pointerEvents: 'none'
+          }} />
+        ))}
+
+        {/* Animated gradient rings behind clock */}
+        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 300, height: 300, borderRadius: '50%', border: '1px solid var(--surface-border)', opacity: 0.3, animation: 'ringPulse 4s ease-in-out infinite' }} />
+        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 400, height: 400, borderRadius: '50%', border: '1px solid var(--surface-border)', opacity: 0.15, animation: 'ringPulse 4s ease-in-out 1s infinite' }} />
+
+        {/* Live Clock */}
+        <div style={{ position: 'relative', zIndex: 2, marginBottom: '0.5rem' }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '4rem', fontWeight: 800, letterSpacing: '0.05em', background: 'var(--accent-gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', lineHeight: 1.1 }}>
             {timeStr}
           </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', letterSpacing: '0.15em', textTransform: 'uppercase' }}>Live System Clock</div>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', marginTop: '0.5rem' }}>{dateStr}</p>
         </div>
-      </div>
 
-      {/* Daily Wisdom Quote */}
-      <div className="glass reveal-up" style={{ '--reveal-delay': '60ms', padding: '1.5rem 2rem', display: 'flex', alignItems: 'center', gap: '1.5rem' } as React.CSSProperties}>
-        <div style={{ padding: '0.75rem', background: 'var(--surface-hover)', borderRadius: '14px', color: 'var(--accent-primary)', flexShrink: 0 }}>
-          <Quote size={22} />
+        {/* Wisdom Quote */}
+        <div style={{ position: 'relative', zIndex: 2, maxWidth: 500, marginTop: '1rem', marginBottom: '2rem' }}>
+          <p style={{ fontStyle: 'italic', fontSize: '0.95rem', lineHeight: 1.6, color: 'var(--text-secondary)', opacity: 0.9 }}>"{todayQuote.text}"</p>
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-tertiary)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>— {todayQuote.author}</span>
         </div>
-        <div style={{ flex: 1 }}>
-          <p style={{ fontSize: '1.05rem', fontStyle: 'italic', lineHeight: 1.5, marginBottom: '0.5rem' }}>"{todayQuote.text}"</p>
-          <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-tertiary)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>— {todayQuote.author}</span>
+
+        {/* === NAVIGATION ORBS === */}
+        <div style={{ position: 'relative', zIndex: 2, display: 'flex', gap: '2rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+          {NAV_ORBS.map((orb) => {
+            const Icon = orb.icon
+            const isHovered = hoveredOrb === orb.href
+            return (
+              <button
+                key={orb.href}
+                onClick={() => router.push(orb.href)}
+                onMouseEnter={() => setHoveredOrb(orb.href)}
+                onMouseLeave={() => setHoveredOrb(null)}
+                className="nav-orb"
+                style={{
+                  width: 90, height: 90, borderRadius: '50%',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px',
+                  background: isHovered ? `${orb.color}20` : 'var(--surface)',
+                  border: `2px solid ${isHovered ? orb.color : 'var(--surface-border)'}`,
+                  cursor: 'pointer', transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+                  transform: isHovered ? 'scale(1.15) translateY(-8px)' : 'scale(1)',
+                  boxShadow: isHovered ? `0 12px 40px ${orb.color}40, 0 0 20px ${orb.color}20` : 'var(--shadow-sm)',
+                  animation: `orbFloat 3s ease-in-out ${orb.delay}s infinite alternate`,
+                  color: isHovered ? orb.color : 'var(--text-secondary)',
+                }}
+              >
+                <Icon size={24} />
+                <span style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>{orb.label}</span>
+              </button>
+            )
+          })}
         </div>
       </div>
 
       {/* Stat Cards */}
       <div className="grid-2">
-        <div className="stat-card glass reveal-up" style={{ '--reveal-delay': '120ms', padding: '2rem' } as React.CSSProperties}>
+        <div className="stat-card glass reveal-up" style={{ '--reveal-delay': '100ms', padding: '2rem' } as React.CSSProperties}>
           <div className="stat-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Activity size={16} /> Today
           </div>
@@ -122,12 +173,9 @@ export default function DashboardClient({ stats, categories, tags, recentEntries
             <span className="text-xs text-secondary">Target: {dailyGoalHours}h</span>
             <span className="text-xs" style={{ color: 'var(--accent-primary)', fontWeight: 700 }}>{Math.round(todayPct)}%</span>
           </div>
-          <div className="progress-track">
-            <div className="progress-fill" style={{ width: `${todayPct}%` }} />
-          </div>
+          <div className="progress-track"><div className="progress-fill" style={{ width: `${todayPct}%` }} /></div>
         </div>
-
-        <div className="stat-card glass reveal-up" style={{ '--reveal-delay': '180ms', padding: '2rem' } as React.CSSProperties}>
+        <div className="stat-card glass reveal-up" style={{ '--reveal-delay': '160ms', padding: '2rem' } as React.CSSProperties}>
           <div className="stat-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Database size={16} /> This Week
           </div>
@@ -136,113 +184,48 @@ export default function DashboardClient({ stats, categories, tags, recentEntries
             <span className="text-xs text-secondary">Target: {weeklyGoalHours}h</span>
             <span className="text-xs" style={{ color: 'var(--accent-secondary)', fontWeight: 700 }}>{Math.round(weekPct)}%</span>
           </div>
-          <div className="progress-track">
-            <div className="progress-fill" style={{ width: `${weekPct}%`, background: 'linear-gradient(90deg, var(--accent-secondary), var(--accent-tertiary))' }} />
-          </div>
+          <div className="progress-track"><div className="progress-fill" style={{ width: `${weekPct}%`, background: 'linear-gradient(90deg, var(--accent-secondary), var(--accent-tertiary))' }} /></div>
         </div>
       </div>
 
-      {/* Category Breakdown Graph */}
-      {stats.categoryBreakdown.length > 0 && (
-        <div className="glass reveal-up" style={{ '--reveal-delay': '240ms', padding: '2rem' } as React.CSSProperties}>
-          <h3 style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--text-secondary)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Network size={16} color="var(--accent-secondary)" /> Weekly Breakdown
-          </h3>
-          <div style={{ display: 'flex', alignItems: 'flex-end', height: 120, gap: '0.75rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--surface-border)', paddingBottom: '0.75rem' }}>
-            {stats.categoryBreakdown.map((cat: any, i: number) => {
-              const heightPct = Math.max((cat.seconds / totalCatSeconds) * 100, 8)
-              return (
-                <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem', height: '100%', justifyContent: 'flex-end' }}>
-                  <div style={{
-                    width: '100%', height: `${heightPct}%`, background: `linear-gradient(180deg, ${cat.color}, ${cat.color}88)`,
-                    borderRadius: '6px 6px 0 0', transition: 'height 1s cubic-bezier(0.16, 1, 0.3, 1)', position: 'relative'
-                  }}>
-                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: 'rgba(255,255,255,0.5)', borderRadius: '6px 6px 0 0' }} />
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'center' }}>
-            {stats.categoryBreakdown.map((cat: any, i: number) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}>
-                <div style={{ width: 10, height: 10, borderRadius: '50%', background: cat.color }} />
-                <span style={{ fontWeight: 600 }}>{cat.name}</span>
-                <span className="text-secondary" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>{(cat.seconds / 3600).toFixed(1)}h</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Two Column: Tomorrow Planner + Journal */}
+      {/* Tomorrow Planner + Journal */}
       <div className="grid-2">
-        {/* Tomorrow Planner */}
-        <div className="glass reveal-up" style={{ '--reveal-delay': '300ms', padding: '2rem' } as React.CSSProperties}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem' }}>
+        <div className="glass reveal-up" style={{ '--reveal-delay': '220ms', padding: '2rem' } as React.CSSProperties}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
             <Target size={18} color="var(--accent-secondary)" />
-            <h3 style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--text-secondary)', margin: 0 }}>Tomorrow's Blueprint</h3>
+            <h3 style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--text-secondary)', margin: 0 }}>Tomorrow's Plan</h3>
           </div>
-          <textarea
-            value={tomorrowPlan}
-            onChange={(e) => setTomorrowPlan(e.target.value)}
-            placeholder="Plan your priorities for tomorrow..."
-            style={{
-              width: '100%', minHeight: 100, background: 'var(--surface)', border: '1px solid var(--surface-border)',
-              borderRadius: '12px', padding: '1rem', color: 'var(--text-primary)', fontFamily: 'var(--font-sans)',
-              fontSize: '0.9rem', resize: 'vertical', outline: 'none', transition: 'border-color 0.3s',
-            }}
-            onFocus={(e) => { e.target.style.borderColor = 'var(--accent-secondary)' }}
-            onBlur={(e) => { e.target.style.borderColor = 'var(--surface-border)' }}
-          />
-          <button className="btn-primary mt-md" onClick={saveTomorrowPlan} style={{ width: '100%', padding: '0.75rem' }}>
-            Save Blueprint
-          </button>
+          <textarea value={tomorrowPlan} onChange={(e) => setTomorrowPlan(e.target.value)} placeholder="Plan your priorities..."
+            style={{ width: '100%', minHeight: 90, background: 'var(--surface)', border: '1px solid var(--surface-border)', borderRadius: '12px', padding: '1rem', color: 'var(--text-primary)', fontFamily: 'var(--font-sans)', fontSize: '0.9rem', resize: 'vertical', outline: 'none', transition: 'border-color 0.3s' }}
+            onFocus={(e) => { e.target.style.borderColor = 'var(--accent-secondary)' }} onBlur={(e) => { e.target.style.borderColor = 'var(--surface-border)' }} />
+          <button className="btn-primary mt-md" onClick={saveTomorrowPlan} style={{ width: '100%', padding: '0.7rem' }}>Save Plan</button>
         </div>
-
-        {/* Quick Journal */}
-        <div className="glass reveal-up" style={{ '--reveal-delay': '360ms', padding: '2rem' } as React.CSSProperties}>
+        <div className="glass reveal-up" style={{ '--reveal-delay': '280ms', padding: '2rem' } as React.CSSProperties}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
             <BookOpen size={18} color="var(--accent-primary)" />
-            <h3 style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--text-secondary)', margin: 0 }}>Today's Journal</h3>
+            <h3 style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--text-secondary)', margin: 0 }}>Today's Journal</h3>
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
             {MOODS.map((m) => (
-              <button key={m} onClick={() => setJournalMood(m)} style={{
-                fontSize: '1.3rem', padding: '0.4rem', borderRadius: '10px', cursor: 'pointer',
-                background: journalMood === m ? 'var(--surface-active)' : 'transparent',
-                border: journalMood === m ? '1px solid var(--accent-primary)' : '1px solid transparent',
-                transition: 'all 0.2s'
-              }}>
-                {m}
-              </button>
+              <button key={m} onClick={() => setJournalMood(m)} style={{ fontSize: '1.2rem', padding: '0.35rem', borderRadius: '8px', cursor: 'pointer', background: journalMood === m ? 'var(--surface-active)' : 'transparent', border: journalMood === m ? '1px solid var(--accent-primary)' : '1px solid transparent', transition: 'all 0.2s' }}>{m}</button>
             ))}
           </div>
-          <textarea
-            value={journalText}
-            onChange={(e) => setJournalText(e.target.value)}
-            placeholder="How was your day? What did you accomplish?"
-            style={{
-              width: '100%', minHeight: 80, background: 'var(--surface)', border: '1px solid var(--surface-border)',
-              borderRadius: '12px', padding: '1rem', color: 'var(--text-primary)', fontFamily: 'var(--font-sans)',
-              fontSize: '0.9rem', resize: 'vertical', outline: 'none', transition: 'border-color 0.3s',
-            }}
-            onFocus={(e) => { e.target.style.borderColor = 'var(--accent-primary)' }}
-            onBlur={(e) => { e.target.style.borderColor = 'var(--surface-border)' }}
-          />
-          <button className="btn-primary mt-md" onClick={saveJournal} disabled={journalSaving} style={{ width: '100%', padding: '0.75rem' }}>
-            {journalSaving ? 'Saving...' : (todayJournal ? 'Update Journal' : 'Save Journal')}
+          <textarea value={journalText} onChange={(e) => setJournalText(e.target.value)} placeholder="How was your day?"
+            style={{ width: '100%', minHeight: 65, background: 'var(--surface)', border: '1px solid var(--surface-border)', borderRadius: '12px', padding: '1rem', color: 'var(--text-primary)', fontFamily: 'var(--font-sans)', fontSize: '0.9rem', resize: 'vertical', outline: 'none', transition: 'border-color 0.3s' }}
+            onFocus={(e) => { e.target.style.borderColor = 'var(--accent-primary)' }} onBlur={(e) => { e.target.style.borderColor = 'var(--surface-border)' }} />
+          <button className="btn-primary mt-md" onClick={saveJournal} disabled={journalSaving} style={{ width: '100%', padding: '0.7rem' }}>
+            {journalSaving ? 'Saving...' : (todayJournal ? 'Update' : 'Save')}
           </button>
         </div>
       </div>
 
       {/* Manual Entry */}
-      <div className="reveal-up" style={{ '--reveal-delay': '420ms' } as React.CSSProperties}>
+      <div className="reveal-up" style={{ '--reveal-delay': '340ms' } as React.CSSProperties}>
         <ManualEntryForm categories={categories} tags={tags} />
       </div>
 
       {/* Recent Activity */}
-      <div className="glass reveal-up" style={{ '--reveal-delay': '480ms' } as React.CSSProperties}>
+      <div className="glass reveal-up" style={{ '--reveal-delay': '400ms' } as React.CSSProperties}>
         <h3 style={{ marginBottom: 'var(--space-md)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Clock size={18} color="var(--accent-primary)" /> Recent Activity
         </h3>
