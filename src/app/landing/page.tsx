@@ -1,149 +1,234 @@
-import Link from 'next/link'
-import { ArrowRight, Sparkles, Orbit, Gauge, Trophy, Timer, ShieldCheck, Brain, Network, Hexagon } from 'lucide-react'
+'use client'
 
-const highlights = [
+import React, { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
+import { ArrowRight, Sparkles, Orbit, Gauge, Trophy, Brain, Network, Hexagon, Terminal, Activity, ChevronRight, Quote } from 'lucide-react'
+
+/* --- IntersectionObserver Hook for Scroll Animations --- */
+function useScrollReveal() {
+  const ref = useRef<HTMLDivElement>(null)
+  
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible')
+            observer.unobserve(entry.target)
+          }
+        })
+      },
+      { threshold: 0.15, rootMargin: '0px 0px -50px 0px' }
+    )
+    
+    if (ref.current) {
+      observer.observe(ref.current)
+    }
+    
+    return () => observer.disconnect()
+  }, [])
+  
+  return ref
+}
+
+/* --- ScrollReveal Wrapper Component --- */
+function RevealSection({ children, delay = 0, className = "" }: { children: React.ReactNode, delay?: number, className?: string }) {
+  const ref = useScrollReveal()
+  return (
+    <div ref={ref} className={`scroll-reveal ${className}`} style={{ transitionDelay: `${delay}ms` }}>
+      {children}
+    </div>
+  )
+}
+
+const features = [
   {
-    title: 'Precision Data Network',
-    body: 'Hyper-responsive tracking that updates instantly across the global node cluster.',
+    title: 'Open Protocol Sync',
+    body: 'Your temporal data belongs to you. Transparent pipelines ensure complete tracking logic.',
     icon: Network,
   },
   {
-    title: 'Live Quantum Analytics',
-    body: 'Visualize exactly where your biological energy flows through daily momentum graphs.',
+    title: 'Neural Velocity Tracking',
+    body: 'Convert unstructured working hours into a structured, measurable database of cognitive velocity.',
     icon: Gauge,
   },
   {
-    title: 'Deep Focus Protocol',
-    body: 'Sustained cognitive momentum driven by algorithmic timer cycles.',
+    title: 'Deep Execution Modes',
+    body: 'Algorithmic 25/5 focus cycles engineered to trigger and sustain extreme flow states.',
     icon: Brain,
   },
 ]
 
-const stats = [
-  { value: '10h', label: 'Default Node Target' },
-  { value: '99.9%', label: 'Uptime Reliability' },
-  { value: '< 1s', label: 'Neural Sync Feel' },
+const healthFacts = [
+  { value: '47%', label: 'Cognitive load reduced when tasks are explicitly tracked.' },
+  { value: '2.5x', label: 'Faster achievement of Flow State during isolated time-blocks.' },
+  { value: '90min', label: 'The biological maximum limit for uninterrupted ultra-focus.' },
+]
+
+const wisdom = [
+  { quote: "You act like mortals in all that you fear, and like immortals in all that you desire.", author: "Seneca" },
+  { quote: "It is not that we have a short time to live, but that we waste a lot of it.", author: "Seneca" },
+  { quote: "Focus is a matter of deciding what things you're not going to do.", author: "John Carmack" }
 ]
 
 export default function LandingPage() {
   return (
-    <div className="landing-page page-shell">
-      {/* 3D Core representation */}
-      <div className="landing-3d-orb" aria-hidden="true" />
+    <div className="landing-page page-shell" style={{ paddingTop: '8vh', backgroundImage: 'radial-gradient(ellipse at top, rgba(0, 255, 204, 0.05), transparent 60%)' }}>
       
-      <section className="landing-hero reveal-up" style={{ '--reveal-delay': '100ms' } as React.CSSProperties}>
+      {/* Navigation (Optional Top Bar) */}
+      <nav style={{ position: 'absolute', top: 0, width: '100%', padding: '1.5rem 3rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.2rem', fontWeight: 900, color: '#fff', letterSpacing: '0.1em' }}>
+           <Orbit size={24} color="var(--accent-primary)" />
+           Q-MIRROR
+        </div>
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          <Link href="/login" className="btn-secondary" style={{ padding: '0.6rem 1.5rem', fontSize: '0.9rem' }}>Access Data</Link>
+          <Link href="/signup" className="btn-primary" style={{ padding: '0.6rem 1.5rem', fontSize: '0.9rem', boxShadow: 'none' }}>Get Started <ArrowRight size={16}/></Link>
+        </div>
+      </nav>
+
+      {/* --- HERO SECTION --- */}
+      <RevealSection className="landing-hero" delay={100} style={{ padding: '6rem 2rem 4rem' }}>
         <div style={{
           width: 'fit-content',
-          margin: '0 auto 1.5rem',
+          margin: '0 auto 2rem',
           display: 'flex',
           alignItems: 'center',
           gap: '0.5rem',
-          border: '1px solid var(--accent-secondary)',
+          border: '1px solid rgba(0, 255, 204, 0.3)',
           borderRadius: '999px',
           padding: '0.5rem 1rem',
           fontSize: '0.75rem',
           letterSpacing: '0.15em',
           textTransform: 'uppercase',
-          color: 'var(--accent-secondary)',
-          background: 'rgba(0,240,255,0.05)',
-          boxShadow: '0 0 20px rgba(0,240,255,0.2)'
+          color: 'var(--accent-primary)',
+          background: 'rgba(0, 255, 204, 0.05)',
+          boxShadow: '0 0 20px rgba(0, 255, 204, 0.1)'
         }}>
           <Sparkles size={14} />
-          <span>Systems Operational</span>
+          <span>The Elite Time Database Protocol</span>
         </div>
 
-        <h1 className="landing-title">
-          Data Infrastructure For<br />
-          <span> Elite Execution.</span>
+        <h1 className="landing-title" style={{ maxWidth: '900px', margin: '0 auto 2rem' }}>
+          True Decentralized<br />
+          <span>Intelligence</span>
         </h1>
 
-        <p className="landing-subtitle">
-          Turn your biological time into an indexable, measurable, and highly refined database. Designed for high-performers tracking momentum at scale.
+        <p className="landing-subtitle" style={{ fontSize: '1.25rem' }}>
+          Mirror is a next-generation time architecture delivering instant analytics, rigid execution protocols, and pure cognitive momentum.
         </p>
 
-        <div className="flex-row" style={{ justifyContent: 'center', gap: '1rem', marginTop: '2.5rem' }}>
-          <Link href="/signup" className="btn-primary" style={{ padding: '1.2rem 2.5rem', fontSize: '1.1rem' }}>
-            Initialize Core
-            <ArrowRight size={18} />
+        <div className="flex-row" style={{ justifyContent: 'center', gap: '1.5rem', marginTop: '3rem' }}>
+          <Link href="/signup" className="btn-primary" style={{ minWidth: '180px' }}>
+            Initialize Core <ArrowRight size={18} />
           </Link>
-          <Link href="/login" className="btn-secondary" style={{ padding: '1.2rem 2.5rem', fontSize: '1.1rem' }}>
-            Sync Account
+          <Link href="/login" className="btn-secondary" style={{ minWidth: '160px' }}>
+            Join Us
           </Link>
+        </div>
+      </RevealSection>
+
+      {/* --- FEATURES GRID --- */}
+      <RevealSection delay={200} style={{ width: '100%', maxWidth: '1200px', margin: '6rem auto 4rem', padding: '0 2rem' }}>
+        <h2 style={{ textAlign: 'center', marginBottom: '3rem', fontSize: '3rem', letterSpacing: '-0.03em' }}>Node Infrastructure</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
+          {features.map((feat, idx) => {
+            const Icon = feat.icon
+            return (
+              <div key={idx} className="glass" style={{ padding: '2.5rem', display: 'flex', flexDirection: 'column', height: '100%' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
+                  <div style={{ padding: '12px', background: 'rgba(0, 255, 204, 0.1)', borderRadius: '12px', color: 'var(--accent-primary)' }}>
+                    <Icon size={24} />
+                  </div>
+                  <h3 style={{ fontSize: '1.2rem', margin: 0 }}>{feat.title}</h3>
+                </div>
+                <p className="text-secondary" style={{ lineHeight: 1.6, flex: 1 }}>{feat.body}</p>
+              </div>
+            )
+          })}
+        </div>
+      </RevealSection>
+
+      {/* --- PROTOCOL & HEALTH METRICS --- */}
+      <section style={{ background: 'linear-gradient(180deg, transparent, rgba(0,255,204,0.02) 20%, rgba(0,255,204,0.02) 80%, transparent)', width: '100%', padding: '6rem 2rem' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          <div className="grid-2" style={{ alignItems: 'center', gap: '4rem' }}>
+            
+            <RevealSection delay={100}>
+              <h2 style={{ fontSize: '2.5rem', marginBottom: '1.5rem' }}>Transforming Chaos<br/>Into <span style={{ color: 'var(--accent-primary)' }}>Intelligence</span></h2>
+              <p className="text-secondary" style={{ fontSize: '1.1rem', lineHeight: 1.7, marginBottom: '2rem' }}>
+                Forget unstructured work. Use the Mirror's rigid block protocols to synthesize raw time into trackable nodes. Visualizing energy flows creates an immediate neurological feedback loop.
+              </p>
+              <ul className="flex-col gap-md" style={{ listStyle: 'none' }}>
+                {healthFacts.map((fact, idx) => (
+                  <li key={idx} style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', background: 'rgba(0,0,0,0.4)', padding: '1rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--accent-secondary)' }}>{fact.value}</div>
+                    <div className="text-sm text-secondary">{fact.label}</div>
+                  </li>
+                ))}
+              </ul>
+            </RevealSection>
+
+            <RevealSection delay={300} className="glass-glow" style={{ position: 'relative', minHeight: '400px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+               {/* Decorative Terminal UI */}
+               <div style={{ position: 'absolute', top: '15px', left: '20px', display: 'flex', gap: '8px' }}>
+                 <div style={{ width: 12, height: 12, borderRadius: '50%', background: 'rgba(255,0,85,0.5)' }}/>
+                 <div style={{ width: 12, height: 12, borderRadius: '50%', background: 'rgba(255,208,0,0.5)' }}/>
+                 <div style={{ width: 12, height: 12, borderRadius: '50%', background: 'rgba(0,255,204,0.5)' }}/>
+               </div>
+               
+               <div style={{ padding: '2rem', fontFamily: 'var(--font-mono)' }}>
+                 <div style={{ color: 'var(--accent-secondary)', marginBottom: '1rem' }}><Terminal size={16} style={{ display: 'inline', marginRight: '8px' }}/> SYSTEM LOG: Neural Sync Initiated</div>
+                 <div style={{ color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>] Initializing pomodoro_cycle.exe</div>
+                 <div style={{ color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>] Memory loaded: 1440 minutes allocated</div>
+                 <div style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>] Blocking external distractions... [OK]</div>
+                 
+                 <div style={{ borderLeft: '2px solid var(--accent-primary)', paddingLeft: '1rem', margin: '2rem 0' }}>
+                   <div style={{ fontSize: '2.5rem', fontWeight: 800, color: '#fff', letterSpacing: '0.1em' }}>25:00</div>
+                   <div style={{ color: 'var(--accent-primary)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.2em', marginTop: '0.25rem' }}>Deep Execution Mode Active</div>
+                 </div>
+
+                 <div style={{ color: 'var(--accent-tertiary)' }}>] Status: FLOW STATE ATTAINED</div>
+               </div>
+            </RevealSection>
+
+          </div>
         </div>
       </section>
 
-      <section className="reveal-up" style={{ width: '100%', maxWidth: '1000px', margin: '4rem auto 0', '--reveal-delay': '300ms' } as React.CSSProperties}>
-        <div className="grid-2">
-          {/* Left Panel */}
-          <div className="glass-glow flex-col gap-lg" style={{ padding: '3rem' }}>
-            <h2>Flow-state UX, zero drag.</h2>
-            <p className="text-secondary" style={{ lineHeight: 1.6, fontSize: '1.1rem' }}>
-              Every screen acts as a neural terminal. Fast transitions, layered structural depth, and profound visual feedback. The interface reacts like an instrument.
-            </p>
-            <ul className="flex-col gap-md mt-sm" style={{ listStyle: 'none' }}>
-              <li style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                <ShieldCheck size={20} color="var(--accent-secondary)" />
-                <span className="text-secondary">Quantum-encrypted auth clusters</span>
-              </li>
-              <li style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                <Orbit size={20} color="var(--accent-secondary)" />
-                <span className="text-secondary">Choreographed transition layers</span>
-              </li>
-              <li style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                <Hexagon size={20} color="var(--accent-secondary)" />
-                <span className="text-secondary">Holographic data visualization</span>
-              </li>
-            </ul>
-          </div>
-          
-          {/* Right Panel */}
-          <div className="glass flex-col gap-md">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderBottom: '1px solid var(--surface-border)', paddingBottom: '1rem' }}>
-              <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--accent-secondary)', boxShadow: '0 0 10px var(--accent-secondary)' }} />
-              <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'rgba(255,255,255,0.2)' }} />
-              <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'rgba(255,255,255,0.2)' }} />
-              <span className="text-secondary text-xs" style={{ marginLeft: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.2em' }}>Live Terminal</span>
-            </div>
-            {highlights.map((item, idx) => {
-              const Icon = item.icon
-              return (
-                <div key={idx} style={{ display: 'flex', gap: '1rem', background: 'rgba(0,0,0,0.3)', padding: '1rem', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                  <div style={{ background: 'rgba(143, 0, 255, 0.1)', padding: '10px', borderRadius: '12px', border: '1px solid rgba(143, 0, 255, 0.3)', color: 'var(--accent-primary)', alignSelf: 'flex-start' }}>
-                    <Icon size={20} />
-                  </div>
-                  <div>
-                    <h3 style={{ fontSize: '1.05rem', marginBottom: '0.25rem' }}>{item.title}</h3>
-                    <p className="text-secondary text-sm" style={{ lineHeight: 1.5 }}>{item.body}</p>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Stats Row */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem', marginTop: '1.5rem' }}>
-          {stats.map((stat, idx) => (
-            <div key={idx} className="glass" style={{ textAlign: 'center', padding: '2rem' }}>
-              <div style={{ fontSize: '2.5rem', fontWeight: 900, fontFamily: 'var(--font-mono)', background: 'linear-gradient(180deg, #fff, #a89bb8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', filter: 'drop-shadow(0 0 10px rgba(255,255,255,0.2))' }}>
-                {stat.value}
-              </div>
-              <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--accent-secondary)', marginTop: '0.5rem' }}>
-                {stat.label}
+      {/* --- CAROUSEL / WISDOM MODULE --- */}
+      <RevealSection delay={200} style={{ width: '100%', maxWidth: '1000px', margin: '4rem auto 8rem', padding: '0 2rem', textAlign: 'center' }}>
+        <h2 style={{ fontSize: '2rem', marginBottom: '3rem', color: 'var(--text-secondary)' }}>Operating Philosophy</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
+          {wisdom.map((item, idx) => (
+            <div key={idx} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--surface-border)', borderRadius: '16px', padding: '2rem', textAlign: 'left', position: 'relative' }}>
+              <Quote size={20} color="var(--accent-primary)" style={{ opacity: 0.3, position: 'absolute', top: '1.5rem', right: '1.5rem' }} />
+              <p style={{ fontSize: '1rem', lineHeight: 1.6, color: '#e2e8f0', marginBottom: '1.5rem', fontStyle: 'italic' }}>"{item.quote}"</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{ width: 24, height: 2px, background: 'var(--accent-primary)' }} />
+                <span style={{ fontSize: '0.8rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>{item.author}</span>
               </div>
             </div>
           ))}
         </div>
-      </section>
+      </RevealSection>
 
-      <section className="glass-glow reveal-up flex-col" style={{ width: '100%', maxWidth: '1000px', margin: '4rem auto', alignItems: 'center', textAlign: 'center', padding: '4rem 2rem', '--reveal-delay': '500ms' } as React.CSSProperties}>
-        <h2 style={{ fontSize: '2.2rem', marginBottom: '1rem' }}>Ready to synchronize with the network?</h2>
-        <p className="text-secondary" style={{ fontSize: '1.2rem', marginBottom: '2rem' }}>Join the system and make every second measurable and intentional.</p>
-        <Link href="/signup" className="btn-primary" style={{ padding: '1rem 3rem' }}>
-          Connect Node
-          <ArrowRight size={18} />
-        </Link>
-      </section>
+      {/* --- CALL TO ACTION --- */}
+      <RevealSection delay={100} style={{ width: '100%', borderTop: '1px solid rgba(0,255,204,0.1)', background: '#000806' }}>
+        <div style={{ maxWidth: '800px', margin: '0 auto', padding: '6rem 2rem', textAlign: 'center' }}>
+          <h2 style={{ fontSize: '3rem', marginBottom: '1.5rem' }}>Begin the Sequence.</h2>
+          <p className="text-secondary" style={{ fontSize: '1.2rem', marginBottom: '3rem' }}>
+            Data doesn't lie. Stop guessing where your hours go and start managing them like a tactical asset.
+          </p>
+          <Link href="/signup" className="btn-primary" style={{ padding: '1.2rem 3rem', fontSize: '1.1rem' }}>
+            Initialize Your Node
+          </Link>
+          <div style={{ marginTop: '2rem', color: 'var(--text-secondary)', fontSize: '0.8rem', letterSpacing: '0.05em' }}>
+            Powered by next-gen Layer 1 architecture.
+          </div>
+        </div>
+      </RevealSection>
+
     </div>
   )
 }
