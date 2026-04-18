@@ -13,13 +13,14 @@ import {
   LogOut,
   Menu,
   X,
+  Target
 } from 'lucide-react'
 
 const NAV_ITEMS = [
-  { href: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/timer', label: 'Timer', icon: Timer },
-  { href: '/history', label: 'History', icon: History },
-  { href: '/settings', label: 'Settings', icon: Settings },
+  { href: '/', label: 'Overview Terminal', icon: LayoutDashboard },
+  { href: '/timer', label: 'Time Node', icon: Timer },
+  { href: '/history', label: 'Data Logs', icon: History },
+  { href: '/settings', label: 'System Settings', icon: Settings },
 ]
 
 export default function Sidebar() {
@@ -32,19 +33,22 @@ export default function Sidebar() {
   return (
     <>
       {/* Mobile Header */}
-      <div className="mobile-header">
-        <span className="sidebar-logo">The Mirror</span>
+      <div className="mobile-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', borderBottom: '1px solid rgba(143, 0, 255, 0.2)', background: 'rgba(5, 2, 10, 0.9)' }}>
+        <span className="sidebar-logo" style={{ fontSize: '1.2rem', marginBottom: 0 }}>The Mirror</span>
         <button className="btn-icon" onClick={() => setMobileOpen(!mobileOpen)}>
           {mobileOpen ? <X size={22} /> : <Menu size={22} />}
         </button>
       </div>
 
       {/* Sidebar */}
-      <aside className={`sidebar ${mobileOpen ? 'open' : ''}`}>
-        <div className="sidebar-logo">The Mirror</div>
-        <div className="sidebar-tagline">See where your time goes</div>
+      <aside className={`sidebar ${mobileOpen ? 'open' : ''}`} style={{ transform: mobileOpen && window.innerWidth <= 900 ? 'translateX(0)' : undefined }}>
+        <div className="sidebar-logo" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Target size={24} color="var(--accent-secondary)" />
+          The Mirror
+        </div>
+        <div className="sidebar-tagline">Quantum Sync Active</div>
 
-        <nav className="sidebar-nav">
+        <nav className="sidebar-nav" style={{ marginTop: '2rem' }}>
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon
             const isActive = pathname === item.href
@@ -56,35 +60,30 @@ export default function Sidebar() {
                 onClick={() => setMobileOpen(false)}
               >
                 <Icon size={20} />
-                <span>{item.label}</span>
+                <span style={{ fontSize: '0.9rem', letterSpacing: '0.05em' }}>{item.label}</span>
               </Link>
             )
           })}
         </nav>
 
-        <div className="sidebar-footer">
-          <div style={{ marginBottom: '0.75rem' }}>
-            <div className="text-xs text-secondary" style={{ marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-              Theme
-            </div>
-            <ThemeSelector />
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <div style={{ fontSize: '0.9rem', fontWeight: 600 }}>
+        <div className="sidebar-footer" style={{ marginTop: 'auto', paddingTop: '1.5rem', borderTop: '1px solid rgba(143, 0, 255, 0.2)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <div style={{ overflow: 'hidden' }}>
+              <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'white', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
                 {session.user?.name}
               </div>
-              <div className="text-xs text-secondary">
-                {session.user?.email}
+              <div className="text-secondary" style={{ fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent-secondary)', display: 'inline-block', boxShadow: '0 0 5px var(--accent-secondary)' }} />
+                Node Connected
               </div>
             </div>
             <button
               className="btn-icon"
               onClick={() => signOut({ callbackUrl: '/login' })}
-              title="Sign out"
+              title="Disconnect Node"
+              style={{ background: 'rgba(255, 0, 85, 0.1)', color: '#ff0055', borderColor: 'rgba(255,0,85,0.2)' }}
             >
-              <LogOut size={18} />
+              <LogOut size={16} />
             </button>
           </div>
         </div>
