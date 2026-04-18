@@ -188,10 +188,10 @@ export default function LandingPage() {
 
         <div className="flex-row" style={{ justifyContent: 'center', gap: '1.5rem', marginTop: '3rem' }}>
           <Link href="/signup" className="btn-primary" style={{ minWidth: '180px' }}>
-            Initialize Core <ArrowRight size={18} />
+            Get Started <ArrowRight size={18} />
           </Link>
           <Link href="/login" className="btn-secondary" style={{ minWidth: '160px' }}>
-            Join Us
+            Sign In
           </Link>
         </div>
       </RevealSection>
@@ -230,7 +230,7 @@ export default function LandingPage() {
               </p>
               <ul className="flex-col gap-md" style={{ listStyle: 'none' }}>
                 {healthFacts.map((fact, idx) => (
-                  <li key={idx} style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', background: 'rgba(0,0,0,0.4)', padding: '1rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', backdropFilter: 'blur(8px)' }}>
+                  <li key={idx} style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', background: 'var(--surface)', padding: '1rem', borderRadius: '12px', border: '1px solid var(--surface-border)' }}>
                     <div style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--accent-secondary)' }}>{fact.value}</div>
                     <div className="text-sm text-secondary">{fact.label}</div>
                   </li>
@@ -272,7 +272,7 @@ export default function LandingPage() {
           {wisdom.map((item, idx) => (
             <div key={idx} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--surface-border)', borderRadius: '16px', padding: '2rem', textAlign: 'left', position: 'relative' }}>
               <Quote size={20} color="var(--accent-primary)" style={{ opacity: 0.3, position: 'absolute', top: '1.5rem', right: '1.5rem' }} />
-              <p style={{ fontSize: '1rem', lineHeight: 1.6, color: '#e2e8f0', marginBottom: '1.5rem', fontStyle: 'italic' }}>"{item.quote}"</p>
+              <p style={{ fontSize: '1rem', lineHeight: 1.6, color: 'var(--text-secondary)', marginBottom: '1.5rem', fontStyle: 'italic' }}>"{item.quote}"</p>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                 <div style={{ width: 24, height: 2, background: 'var(--accent-primary)' }} />
                 <span style={{ fontSize: '0.8rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>{item.author}</span>
@@ -283,7 +283,7 @@ export default function LandingPage() {
       </RevealSection>
 
       {/* --- CALL TO ACTION --- */}
-      <RevealSection delay={100} style={{ width: '100%', borderTop: '1px solid rgba(0,255,204,0.1)', background: '#000806' }}>
+      <RevealSection delay={100} style={{ width: '100%', borderTop: '1px solid var(--surface-border)', background: 'var(--bg-secondary)' }}>
         <div style={{ maxWidth: '800px', margin: '0 auto', padding: '6rem 2rem', textAlign: 'center' }}>
           <h2 style={{ fontSize: '3rem', marginBottom: '1.5rem' }}>Begin the Sequence.</h2>
           <p className="text-secondary" style={{ fontSize: '1.2rem', marginBottom: '3rem' }}>
