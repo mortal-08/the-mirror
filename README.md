@@ -2,7 +2,8 @@
 
 **The Mirror** is a comprehensive personal productivity dashboard designed to help you track your time, maintain deep focus, and reflect on your daily progress. Built with a modern tech stack, it combines a highly customizable Pomodoro timer, a daily journaling system, and robust analytics into one seamless experience.
 
-![The Mirror Dashboard Placeholder](https://via.placeholder.com/1000x500?text=The+Mirror+Dashboard) *(Replace with an actual screenshot of your dashboard)*
+<img width="1700" height="974" alt="image" src="https://github.com/user-attachments/assets/5b94b941-57ad-4828-8eb5-9b362a0534e0" />
+
 
 ## ✨ Features
 
