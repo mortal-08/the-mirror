@@ -1,0 +1,74 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String      @id @default(uuid())
+  name         String
+  email        String      @unique
+  passwordHash String
+  entries      TimeEntry[]
+  categories   Category[]
+  tags         Tag[]
+  goals        Goal[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
+
+model Category {
+  id        String      @id @default(uuid())
+  name      String
+  color     String      @default("#6366f1")
+  icon      String      @default("folder")
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entries   TimeEntry[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@unique([name, userId])
+}
+
+model Tag {
+  id        String      @id @default(uuid())
+  name      String
+  color     String      @default("#8b5cf6")
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entries   TimeEntry[]
+  createdAt DateTime    @default(now())
+
+  @@unique([name, userId])
+}
+
+model TimeEntry {
+  id              String    @id @default(uuid())
+  description     String?
+  startTime       DateTime
+  endTime         DateTime?
+  durationSeconds Int?
+  categoryId      String?
+  category        Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  tags            Tag[]
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Goal {
+  id            String   @id @default(uuid())
+  type          String   // "DAILY" or "WEEKLY"
+  targetSeconds Int      @default(36000)
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([type, userId])
+}
