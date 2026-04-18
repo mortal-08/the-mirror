@@ -2,7 +2,8 @@
 
 import React, { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ArrowRight, Sparkles, Orbit, Gauge, Trophy, Brain, Network, Hexagon, Terminal, Activity, ChevronRight, Quote } from 'lucide-react'
+import { ArrowRight, Sparkles, Orbit, Gauge, Trophy, Brain, Network, Hexagon, Terminal, Activity, ChevronRight, Quote, Moon, Sun } from 'lucide-react'
+import { useTheme } from '@/components/ThemeProvider'
 
 /* --- IntersectionObserver Hook for Scroll Animations --- */
 function useScrollReveal() {
@@ -124,18 +125,28 @@ const wisdom = [
 ]
 
 export default function LandingPage() {
+  const { theme, setTheme } = useTheme()
+  const isLight = theme === 'light'
+
   return (
-    <div className="landing-page page-shell" style={{ paddingTop: '8vh', backgroundImage: 'radial-gradient(ellipse at top, rgba(0, 255, 204, 0.05), transparent 60%)' }}>
+    <div className="landing-page page-shell" style={{ paddingTop: '8vh', backgroundImage: `radial-gradient(ellipse at top, ${isLight ? 'rgba(0,102,82,0.05)' : 'rgba(0, 255, 204, 0.05)'}, transparent 60%)` }}>
       
       <ParticleNetwork />
 
       {/* Navigation (Optional Top Bar) */}
       <nav style={{ position: 'absolute', top: 0, width: '100%', padding: '1.5rem 3rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 100 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.2rem', fontWeight: 900, color: '#fff', letterSpacing: '0.1em' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.2rem', fontWeight: 900, letterSpacing: '0.1em' }}>
            <Orbit size={24} color="var(--accent-primary)" />
-           Q-MIRROR
+           The Mirror
         </div>
-        <div style={{ display: 'flex', gap: '1rem' }}>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <button 
+            className="theme-btn" 
+            onClick={() => setTheme(isLight ? 'dark' : 'light')} 
+            aria-label="Toggle Theme"
+          >
+            {isLight ? <Moon size={20} /> : <Sun size={20} />}
+          </button>
           <Link href="/login" className="btn-secondary" style={{ padding: '0.6rem 1.5rem', fontSize: '0.9rem' }}>Access Data</Link>
           <Link href="/signup" className="btn-primary" style={{ padding: '0.6rem 1.5rem', fontSize: '0.9rem', boxShadow: 'none' }}>Get Started <ArrowRight size={16}/></Link>
         </div>

@@ -4,7 +4,8 @@ import { useState } from 'react'
 import { signIn } from 'next-auth/react'
 import { registerUser } from '@/actions/auth'
 import Link from 'next/link'
-import { UserPlus, Eye, EyeOff, Mail, Lock, User, Sparkles, Check } from 'lucide-react'
+import { UserPlus, Eye, EyeOff, Mail, Lock, User, Orbit, ArrowRight, Check, Moon, Sun } from 'lucide-react'
+import { useTheme } from '@/components/ThemeProvider'
 
 export default function SignupPage() {
   const [name, setName] = useState('')
@@ -14,10 +15,13 @@ export default function SignupPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [focusedField, setFocusedField] = useState<string | null>(null)
+  
+  const { theme, setTheme } = useTheme()
+  const isLight = theme === 'light'
 
   const passwordStrength = password.length === 0 ? 0 : password.length < 6 ? 1 : password.length < 10 ? 2 : 3
-  const strengthLabels = ['', 'Weak', 'Good', 'Strong']
-  const strengthColors = ['', '#ff0055', '#ffbe0b', '#a1ff00']
+  const strengthLabels = ['', 'Weak', 'Operational', 'Secure']
+  const strengthColors = ['', '#ff0055', '#ffbe0b', '#00ffcc']
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -25,7 +29,7 @@ export default function SignupPage() {
     setError('')
 
     if (password.length < 6) {
-      setError('Password must be at least 6 characters.')
+      setError('Cipher must be at least 6 characters.')
       setLoading(false)
       return
     }
@@ -38,7 +42,6 @@ export default function SignupPage() {
       return
     }
 
-    // Auto sign in after registration
     const signInResult = await signIn('credentials', {
       email,
       password,
@@ -46,7 +49,7 @@ export default function SignupPage() {
     })
 
     if (signInResult?.error) {
-      setError('Account created but sign-in failed. Please login manually.')
+      setError('Link formulated, but handshake failed. Please login manually.')
       setLoading(false)
     } else {
       window.location.href = '/'
@@ -54,118 +57,114 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="auth-page">
-      {/* Animated background orbs */}
-      <div className="auth-bg-orb auth-bg-orb-1" />
-      <div className="auth-bg-orb auth-bg-orb-2" />
-      <div className="auth-bg-orb auth-bg-orb-3" />
-      <div className="auth-bg-grid" />
+    <div className="auth-page-split">
+      <div className="theme-selector-top">
+        <button 
+          className="theme-btn" 
+          onClick={() => setTheme(isLight ? 'dark' : 'light')} 
+          aria-label="Toggle Theme"
+        >
+          {isLight ? <Moon size={20} /> : <Sun size={20} />}
+        </button>
+      </div>
 
-      <div className="auth-container">
-        <div className="auth-card">
-          {/* Glow ring behind card */}
-          <div className="auth-card-glow" />
+      <div className="auth-side-form">
+        <div className="auth-form-wrapper" style={{ animationDelay: '100ms' }}>
+          <Link href="/landing" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)', marginBottom: '3rem', fontSize: '0.9rem', fontWeight: 600 }}>
+             <Orbit size={20} color="var(--accent-primary)" />
+             Return to Protocol
+          </Link>
 
-          {/* Logo */}
-          <div className="auth-logo-section">
-            <div className="auth-logo-icon">
-              <Sparkles size={28} />
-            </div>
-            <h1 className="auth-logo">The Mirror</h1>
-            <p className="auth-subtitle">Create your account and start tracking.</p>
-            <Link href="/landing" className="auth-preview-link">
-              Preview landing page
-              <span className="auth-link-arrow">→</span>
-            </Link>
-          </div>
+          <h1 className="auth-title">Formulate Node.</h1>
+          <p className="auth-subtitle">Establish your identity within the network.</p>
 
           {/* Error */}
           {error && (
-            <div className="auth-error" role="alert">
-              <div className="auth-error-dot" />
+            <div className="auth-error" role="alert" style={{ background: 'var(--surface)', padding: '1rem', borderRadius: '12px', borderLeft: '4px solid var(--accent-warning)', borderTop: '1px solid var(--surface-border)', borderRight: '1px solid var(--surface-border)', borderBottom: '1px solid var(--surface-border)', marginBottom: '1.5rem', color: 'var(--text-primary)', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent-warning)'}} />
               {error}
             </div>
           )}
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="auth-form">
-            <div className={`auth-input-group ${focusedField === 'name' ? 'focused' : ''} ${name ? 'filled' : ''}`}>
-              <div className="auth-input-icon">
-                <User size={18} />
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            
+            <div style={{ position: 'relative' }}>
+              <label htmlFor="signup-name">Alias</label>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <User size={18} style={{ position: 'absolute', left: '16px', color: focusedField === 'name' ? 'var(--accent-primary)' : 'var(--text-secondary)', transition: 'color 0.3s' }} />
+                <input
+                  id="signup-name"
+                  type="text"
+                  className="input"
+                  style={{ paddingLeft: '48px' }}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  onFocus={() => setFocusedField('name')}
+                  onBlur={() => setFocusedField(null)}
+                  placeholder="Your Designation"
+                  required
+                  autoFocus
+                />
               </div>
-              <input
-                id="signup-name"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                onFocus={() => setFocusedField('name')}
-                onBlur={() => setFocusedField(null)}
-                placeholder="Your name"
-                required
-                autoFocus
-                autoComplete="name"
-              />
-              <label htmlFor="signup-name">Name</label>
             </div>
 
-            <div className={`auth-input-group ${focusedField === 'email' ? 'focused' : ''} ${email ? 'filled' : ''}`}>
-              <div className="auth-input-icon">
-                <Mail size={18} />
+            <div style={{ position: 'relative' }}>
+              <label htmlFor="signup-email">Transmission Vector (Email)</label>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <Mail size={18} style={{ position: 'absolute', left: '16px', color: focusedField === 'email' ? 'var(--accent-primary)' : 'var(--text-secondary)', transition: 'color 0.3s' }} />
+                <input
+                  id="signup-email"
+                  type="email"
+                  className="input"
+                  style={{ paddingLeft: '48px' }}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onFocus={() => setFocusedField('email')}
+                  onBlur={() => setFocusedField(null)}
+                  placeholder="vector@mirror.net"
+                  required
+                />
               </div>
-              <input
-                id="signup-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                onFocus={() => setFocusedField('email')}
-                onBlur={() => setFocusedField(null)}
-                placeholder="you@example.com"
-                required
-                autoComplete="email"
-              />
-              <label htmlFor="signup-email">Email</label>
             </div>
 
-            <div className={`auth-input-group ${focusedField === 'password' ? 'focused' : ''} ${password ? 'filled' : ''}`}>
-              <div className="auth-input-icon">
-                <Lock size={18} />
+            <div style={{ position: 'relative' }}>
+              <label htmlFor="signup-password">Access Cipher</label>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <Lock size={18} style={{ position: 'absolute', left: '16px', color: focusedField === 'password' ? 'var(--accent-primary)' : 'var(--text-secondary)', transition: 'color 0.3s' }} />
+                <input
+                  id="signup-password"
+                  type={showPw ? 'text' : 'password'}
+                  className="input"
+                  style={{ paddingLeft: '48px', paddingRight: '48px' }}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onFocus={() => setFocusedField('password')}
+                  onBlur={() => setFocusedField(null)}
+                  placeholder="Min 6 characters"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPw(!showPw)}
+                  style={{ position: 'absolute', right: '16px', color: 'var(--text-secondary)', background: 'transparent', border: 'none', cursor: 'pointer' }}
+                >
+                  {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
-              <input
-                id="signup-password"
-                type={showPw ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                onFocus={() => setFocusedField('password')}
-                onBlur={() => setFocusedField(null)}
-                placeholder="Min 6 characters"
-                required
-                minLength={6}
-                autoComplete="new-password"
-              />
-              <label htmlFor="signup-password">Password</label>
-              <button
-                type="button"
-                className="auth-pw-toggle"
-                onClick={() => setShowPw(!showPw)}
-                aria-label={showPw ? 'Hide password' : 'Show password'}
-              >
-                {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
             </div>
 
             {/* Password strength indicator */}
             {password.length > 0 && (
-              <div className="auth-pw-strength">
-                <div className="auth-pw-strength-track">
-                  <div
-                    className="auth-pw-strength-fill"
-                    style={{
-                      width: `${(passwordStrength / 3) * 100}%`,
-                      background: strengthColors[passwordStrength],
-                    }}
-                  />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '-0.5rem' }}>
+                <div style={{ flex: 1, height: '4px', background: 'var(--surface-hover)', borderRadius: '2px', overflow: 'hidden' }}>
+                  <div style={{ 
+                    height: '100%', 
+                    width: `${(passwordStrength / 3) * 100}%`, 
+                    background: strengthColors[passwordStrength],
+                    transition: 'width 0.3s ease, background 0.3s ease'
+                  }} />
                 </div>
-                <span className="auth-pw-strength-label" style={{ color: strengthColors[passwordStrength] }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: strengthColors[passwordStrength], display: 'flex', alignItems: 'center', gap: '4px' }}>
                   {passwordStrength === 3 && <Check size={12} />}
                   {strengthLabels[passwordStrength]}
                 </span>
@@ -174,30 +173,38 @@ export default function SignupPage() {
 
             <button
               type="submit"
-              className="auth-submit-btn"
+              className="btn-primary"
               disabled={loading}
-              id="signup-submit"
+              style={{ marginTop: '1rem', width: '100%', padding: '1.2rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.75rem' }}
             >
-              <span className="auth-btn-bg" />
-              <span className="auth-btn-content">
-                {loading ? (
-                  <span className="auth-spinner" />
-                ) : (
-                  <UserPlus size={18} />
-                )}
-                {loading ? 'Creating account...' : 'Create Account'}
-              </span>
+              {loading ? (
+                 <div style={{ width: 18, height: 18, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'extremeOrbit 1s infinite linear' }} />
+              ) : (
+                <UserPlus size={18} />
+              )}
+              {loading ? 'Compiling Node...' : 'Establish Network'}
             </button>
           </form>
 
-          {/* Footer link */}
-          <div className="auth-footer">
-            <span>Already have an account?</span>
-            <Link href="/login" className="auth-link">
-              Sign in
-              <span className="auth-link-arrow">→</span>
+          <div style={{ marginTop: '3rem', textAlign: 'center', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+            Already initialized?{' '}
+            <Link href="/login" style={{ color: 'var(--text-primary)', fontWeight: 700, borderBottom: '1px solid var(--accent-primary)', paddingBottom: '2px', marginLeft: '0.5rem' }}>
+              Engage Link <ArrowRight size={14} style={{ display: 'inline', verticalAlign: 'middle' }} />
             </Link>
           </div>
+        </div>
+      </div>
+
+      <div className="auth-side-visual" style={{ backgroundImage: 'url(/elite_time_geometry_1776513726851.png)' }}>
+        <div className="auth-quote-card">
+          <p>"Amateurs sit and wait for inspiration, the rest of us just get up and go to work."</p>
+          <div className="auth-quote-author">Stephen King</div>
+        </div>
+        
+        {/* Futuristic System Interface Overlay */}
+        <div style={{ position: 'absolute', top: '4rem', right: '4rem', zIndex: 10, display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent-primary)', boxShadow: '0 0 10px var(--accent-primary)', animation: 'gentlePulse 2s infinite' }} />
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: '#fff', letterSpacing: '0.2em', textTransform: 'uppercase' }}>New Node Creation: Active</span>
         </div>
       </div>
     </div>
