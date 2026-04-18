@@ -81,19 +81,32 @@ export default function LiveTimer({ categories }: { categories: any[] }) {
 
   const playSound = useCallback(() => {
     try {
-      const ctx = new AudioContext()
-      const tone = (f: number, s: number, d: number) => {
-        const o = ctx.createOscillator(), g = ctx.createGain()
-        o.connect(g); g.connect(ctx.destination)
-        o.frequency.value = f; o.type = 'sine'
-        g.gain.setValueAtTime(0.35, ctx.currentTime + s)
-        g.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + s + d)
-        o.start(ctx.currentTime + s); o.stop(ctx.currentTime + s + d)
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
+      if (AudioCtx) {
+        const ctx = new AudioCtx()
+        const tone = (f: number, s: number, d: number) => {
+          const o = ctx.createOscillator(), g = ctx.createGain()
+          o.connect(g); g.connect(ctx.destination)
+          o.frequency.value = f; o.type = 'sine'
+          g.gain.setValueAtTime(0.35, ctx.currentTime + s)
+          g.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + s + d)
+          o.start(ctx.currentTime + s); o.stop(ctx.currentTime + s + d)
+        }
+        tone(523, 0, 0.25); tone(659, 0.3, 0.25); tone(784, 0.6, 0.4)
+        setTimeout(() => {
+          if (ctx.state !== 'closed') ctx.close()
+        }, 1500)
       }
-      tone(523, 0, 0.25); tone(659, 0.3, 0.25); tone(784, 0.6, 0.4)
-    } catch { }
-    if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification('Mirror', { body: 'Timer done! 🎯' })
+    } catch (err) {
+      console.warn('Audio playback failed', err)
+    }
+
+    try {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('Mirror', { body: 'Timer done! 🎯' })
+      }
+    } catch (err) {
+      console.warn('Notifications are not supported on this browser without a Service Worker.')
     }
   }, [])
 
