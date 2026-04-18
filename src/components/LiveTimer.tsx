@@ -9,6 +9,35 @@ import { Play, Square, Pause, Coffee, Zap, Maximize, Minimize, Settings2, X, Rot
 type Mode = 'focus' | 'pomodoro'
 type PomodoroPhase = 'work' | 'shortBreak' | 'longBreak'
 
+// ── Button builder (at module scope for stable reference — fixes Chrome Mobile touch bug) ──
+const Btn = ({
+  onClick,
+  children,
+  style,
+  className,
+}: {
+  onClick: (e: any) => void
+  children: React.ReactNode
+  style?: React.CSSProperties
+  className?: string
+}) => (
+  <button
+    className={className}
+    onClick={(e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      onClick(e)
+    }}
+    style={{
+      ...style,
+      touchAction: 'manipulation',
+      WebkitTapHighlightColor: 'transparent',
+    }}
+  >
+    {children}
+  </button>
+)
+
 export default function LiveTimer({ categories }: { categories: any[] }) {
   const { toast } = useToast()
   const [running, setRunning] = useState(false)
@@ -62,7 +91,7 @@ export default function LiveTimer({ categories }: { categories: any[] }) {
         o.start(ctx.currentTime + s); o.stop(ctx.currentTime + s + d)
       }
       tone(523, 0, 0.25); tone(659, 0.3, 0.25); tone(784, 0.6, 0.4)
-    } catch {}
+    } catch { }
     if ('Notification' in window && Notification.permission === 'granted') {
       new Notification('Mirror', { body: 'Timer done! 🎯' })
     }
@@ -174,17 +203,6 @@ export default function LiveTimer({ categories }: { categories: any[] }) {
   const circ = 2 * Math.PI * 140
   const offset = circ - circ * progress
   const phaseLabel = pomPhase === 'work' ? `Focus #${pomCount + 1}` : pomPhase === 'shortBreak' ? 'Short Break' : 'Long Break'
-
-  // ── Button builder (reliable on ALL devices) ──
-  const Btn = ({ onClick, children, style, className }: { onClick: (e: any) => void, children: React.ReactNode, style?: React.CSSProperties, className?: string }) => (
-    <button
-      className={className}
-      onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClick(e) }}
-      style={{ ...style, touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
-    >
-      {children}
-    </button>
-  )
 
   function renderClock(big: boolean) {
     const sz = big ? 260 : 200
