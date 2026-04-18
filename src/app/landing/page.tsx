@@ -55,14 +55,14 @@ function ParticleNetwork() {
     top: `${Math.random() * 100}%`,
     duration: `${15 + Math.random() * 10}s`,
     delay: `${-Math.random() * 10}s`,
-    color: i % 3 === 0 ? 'rgba(0,255,204,0.8)' : 'rgba(255,255,255,0.4)',
+    color: i % 3 === 0 ? 'var(--accent-primary)' : 'var(--text-tertiary)',
     size: Math.random() * 4 + 1
   }))
 
   const orbs = [
-    { left: '10%', top: '20%', size: 300, color: 'rgba(0,255,204,0.03)', delay: '0s' },
-    { left: '70%', top: '60%', size: 450, color: 'rgba(0,136,255,0.03)', delay: '-4s' },
-    { left: '40%', top: '-10%', size: 500, color: 'rgba(0,255,204,0.02)', delay: '-2s' },
+    { left: '10%', top: '20%', size: 300, color: 'var(--accent-primary-glow)', delay: '0s' },
+    { left: '70%', top: '60%', size: 450, color: 'rgba(37, 99, 235, 0.05)', delay: '-4s' },
+    { left: '40%', top: '-10%', size: 500, color: 'var(--accent-primary-glow)', delay: '-2s' },
   ]
 
   return (
@@ -96,18 +96,18 @@ function ParticleNetwork() {
 
 const features = [
   {
-    title: 'Open Protocol Sync',
-    body: 'Your temporal data belongs to you. Transparent pipelines ensure complete tracking logic.',
+    title: 'Visual Time Blocks',
+    body: 'See exactly where your hours go with beautiful, interactive time blocks that reveal your daily patterns at a glance.',
     icon: Network,
   },
   {
-    title: 'Neural Velocity Tracking',
-    body: 'Convert unstructured working hours into a structured, measurable database of cognitive velocity.',
+    title: 'Daily Reflection Journal',
+    body: 'Capture your thoughts, track your mood, and build a powerful record of growth with guided daily reflections.',
     icon: Gauge,
   },
   {
-    title: 'Deep Execution Modes',
-    body: 'Algorithmic 25/5 focus cycles engineered to trigger and sustain extreme flow states.',
+    title: 'Habit Analytics',
+    body: 'Discover your productivity rhythms with deep analytics — track streaks, identify peak hours, and optimize your routine.',
     icon: Brain,
   },
 ]
@@ -129,7 +129,7 @@ export default function LandingPage() {
   const isLight = theme === 'light'
 
   return (
-    <div className="landing-page page-shell" style={{ paddingTop: '8vh', backgroundImage: `radial-gradient(ellipse at top, ${isLight ? 'rgba(0,102,82,0.05)' : 'rgba(0, 255, 204, 0.05)'}, transparent 60%)` }}>
+    <div className="landing-page page-shell" style={{ paddingTop: '8vh', backgroundImage: `radial-gradient(ellipse at top, ${isLight ? 'rgba(124,58,237,0.05)' : 'rgba(0, 255, 204, 0.05)'}, transparent 60%)` }}>
       
       <ParticleNetwork />
 
@@ -162,7 +162,7 @@ export default function LandingPage() {
           display: 'flex',
           alignItems: 'center',
           gap: '0.5rem',
-          border: '1px solid rgba(0, 255, 204, 0.3)',
+          border: '1px solid var(--surface-border-hover)',
           borderRadius: '999px',
           padding: '0.5rem 1rem',
           marginBottom: '2rem',
@@ -170,20 +170,20 @@ export default function LandingPage() {
           letterSpacing: '0.15em',
           textTransform: 'uppercase',
           color: 'var(--accent-primary)',
-          background: 'rgba(0, 255, 204, 0.05)',
-          boxShadow: '0 0 20px rgba(0, 255, 204, 0.1)'
+          background: 'var(--surface)',
+          boxShadow: 'var(--shadow-sm)'
         }}>
           <Sparkles size={14} />
-          <span>The Elite Time Database Protocol</span>
+          <span>Clarity Through Data</span>
         </div>
 
         <h1 className="landing-title" style={{ maxWidth: '900px', margin: '0 auto 2rem' }}>
-          True Decentralized<br />
-          <span>Intelligence</span>
+          A perfect reflection<br />
+          <span>of your time.</span>
         </h1>
 
         <p className="landing-subtitle" style={{ fontSize: '1.25rem', maxWidth: '800px', margin: '0 auto' }}>
-          Mirror is a next-generation time architecture delivering instant analytics, rigid execution protocols, and pure cognitive momentum.
+          Stop guessing where your day went. Mirror tracks your habits, visualizes your deep work, and gives you uncompromising visibility into how you spend your hours.
         </p>
 
         <div className="flex-row" style={{ justifyContent: 'center', gap: '1.5rem', marginTop: '3rem' }}>
@@ -198,7 +198,7 @@ export default function LandingPage() {
 
       {/* --- FEATURES GRID --- */}
       <RevealSection delay={200} style={{ width: '100%', maxWidth: '1200px', margin: '6rem auto 4rem', padding: '0 2rem' }}>
-        <h2 style={{ textAlign: 'center', marginBottom: '3rem', fontSize: '3rem', letterSpacing: '-0.03em' }}>Node Infrastructure</h2>
+        <h2 style={{ textAlign: 'center', marginBottom: '3rem', fontSize: '3rem', letterSpacing: '-0.03em' }}>How It Works</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
           {features.map((feat, idx) => {
             const Icon = feat.icon
@@ -224,9 +224,9 @@ export default function LandingPage() {
           <div className="grid-2" style={{ alignItems: 'center', gap: '4rem' }}>
             
             <RevealSection delay={100}>
-              <h2 style={{ fontSize: '2.5rem', marginBottom: '1.5rem' }}>Transforming Chaos<br/>Into <span style={{ color: 'var(--accent-primary)' }}>Intelligence</span></h2>
+              <h2 style={{ fontSize: '2.5rem', marginBottom: '1.5rem' }}>Transforming Chaos<br/>Into <span style={{ color: 'var(--accent-primary)' }}>Clarity</span></h2>
               <p className="text-secondary" style={{ fontSize: '1.1rem', lineHeight: 1.7, marginBottom: '2rem' }}>
-                Forget unstructured work. Use the Mirror's rigid block protocols to synthesize raw time into trackable nodes. Visualizing energy flows creates an immediate neurological feedback loop.
+                Replace scattered time with structured blocks. Mirror reveals where your energy goes, so you can reclaim lost hours and build the habits that matter.
               </p>
               <ul className="flex-col gap-md" style={{ listStyle: 'none' }}>
                 {healthFacts.map((fact, idx) => (
@@ -267,7 +267,7 @@ export default function LandingPage() {
 
       {/* --- CAROUSEL / WISDOM MODULE --- */}
       <RevealSection delay={200} style={{ width: '100%', maxWidth: '1000px', margin: '4rem auto 8rem', padding: '0 2rem', textAlign: 'center' }}>
-        <h2 style={{ fontSize: '2rem', marginBottom: '3rem', color: 'var(--text-secondary)' }}>Operating Philosophy</h2>
+        <h2 style={{ fontSize: '2rem', marginBottom: '3rem', color: 'var(--text-secondary)' }}>Words We Live By</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
           {wisdom.map((item, idx) => (
             <div key={idx} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--surface-border)', borderRadius: '16px', padding: '2rem', textAlign: 'left', position: 'relative' }}>
@@ -285,15 +285,15 @@ export default function LandingPage() {
       {/* --- CALL TO ACTION --- */}
       <RevealSection delay={100} style={{ width: '100%', borderTop: '1px solid var(--surface-border)', background: 'var(--bg-secondary)' }}>
         <div style={{ maxWidth: '800px', margin: '0 auto', padding: '6rem 2rem', textAlign: 'center' }}>
-          <h2 style={{ fontSize: '3rem', marginBottom: '1.5rem' }}>Begin the Sequence.</h2>
+          <h2 style={{ fontSize: '3rem', marginBottom: '1.5rem' }}>Start your journey.</h2>
           <p className="text-secondary" style={{ fontSize: '1.2rem', marginBottom: '3rem' }}>
-            Data doesn't lie. Stop guessing where your hours go and start managing them like a tactical asset.
+            Your time is your most valuable asset. See it clearly, manage it wisely, and take control of every hour.
           </p>
           <Link href="/signup" className="btn-primary" style={{ padding: '1.2rem 3rem', fontSize: '1.1rem' }}>
-            Initialize Your Node
+            Get Started Free
           </Link>
           <div style={{ marginTop: '2rem', color: 'var(--text-secondary)', fontSize: '0.8rem', letterSpacing: '0.05em' }}>
-            Powered by next-gen Layer 1 architecture.
+            Free forever. No credit card required.
           </div>
         </div>
       </RevealSection>

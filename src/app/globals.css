@@ -266,8 +266,14 @@ body::after {
 }
 
 [data-theme='light'] .particle-dot {
-   opacity: 0.2 !important; /* Mute them in light mode */
-   --color: rgba(0,0,0,0.5) !important;
+   opacity: 0.5 !important;
+   --color: var(--accent-primary) !important;
+   box-shadow: 0 0 8px var(--accent-primary) !important;
+}
+
+[data-theme='light'] .floating-orb {
+  --color: rgba(124, 58, 237, 0.08) !important;
+  box-shadow: 0 0 60px rgba(124, 58, 237, 0.1) !important;
 }
 
 @keyframes floatOrb {
@@ -914,11 +920,41 @@ label { font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); lette
 @media (max-width: 900px) {
   .sidebar { transform: translateX(-100%); position: fixed; width: 260px !important; z-index: 200; }
   .sidebar.open { transform: translateX(0); }
-  .main-content { margin-left: 0 !important; padding: var(--space-lg); }
+  .main-content { margin-left: 0 !important; padding: var(--space-lg) var(--space-md); }
   .grid-2, .grid-3 { grid-template-columns: 1fr; }
   .auth-side-visual { display: none; }
   .auth-page-split { flex-direction: column; }
+  .auth-side-form { padding: 2rem 1.5rem; }
+  .auth-title { font-size: 2rem; }
   .page-title { font-size: 1.8rem; }
   .stat-value { font-size: 2.5rem; }
   .mobile-hamburger { display: flex !important; }
+
+  /* Landing page mobile */
+  .landing-page nav { padding: 1rem 1.5rem !important; flex-wrap: wrap; gap: 0.5rem; }
+  .landing-page nav .flex-row { flex-wrap: wrap; gap: 0.75rem !important; }
+  .landing-title { font-size: 2.5rem !important; }
+  .landing-subtitle { font-size: 1rem !important; }
+  .landing-hero { padding: 3rem 1.5rem 2.5rem !important; }
+  .landing-hero .flex-row { flex-direction: column; align-items: center; gap: 0.75rem !important; }
+
+  /* Dashboard hero */
+  .dashboard-hero { padding: 2rem 1.25rem !important; min-height: 360px !important; }
+  .dashboard-hero .nav-orb { width: 70px !important; height: 70px !important; }
+}
+
+@media (max-width: 600px) {
+  .landing-title { font-size: 2rem !important; }
+  .stat-value { font-size: 2rem; }
+  .stat-card { padding: 1.25rem !important; }
+  .glass { padding: 1.25rem; }
+  .auth-form-wrapper { max-width: 100% !important; }
+  .theme-selector-top { top: 1rem; right: 1.5rem; }
+}
+
+@media (max-width: 480px) {
+  .landing-title { font-size: 1.7rem !important; }
+  .landing-page nav { justify-content: center; text-align: center; }
+  .main-content { padding: var(--space-md) !important; }
+  .dashboard-hero .nav-orb { width: 60px !important; height: 60px !important; font-size: 0.55rem !important; }
 }
