@@ -10,14 +10,16 @@ export default async function DashboardPage() {
   const userId = await getUserId()
   if (!userId) redirect('/landing')
 
-  const today = new Date().toISOString().split('T')[0]
+  const now = new Date()
+  const todayLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const today = `${todayLocal.getFullYear()}-${String(todayLocal.getMonth() + 1).padStart(2, '0')}-${String(todayLocal.getDate()).padStart(2, '0')}`
 
   const [categories, entries, stats, todayJournal, routineResult] = await Promise.all([
     getCategories(),
     getTimeEntries(),
     getDashboardStats(),
     getJournalByDate(today),
-    getRoutineBlocks(new Date(today + 'T00:00:00')),
+    getRoutineBlocks(todayLocal),
   ])
 
   const todayBlocks = 'error' in routineResult ? [] : routineResult.data

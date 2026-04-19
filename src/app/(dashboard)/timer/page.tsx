@@ -9,10 +9,12 @@ export default async function TimerPage() {
   const userId = await getUserId()
   if (!userId) redirect('/login')
 
-  const today = new Date().toISOString().split('T')[0]
+  const now = new Date()
+  const todayLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
   const [categories, routineResult, entries] = await Promise.all([
     getCategories(),
-    getRoutineBlocks(new Date(today + 'T00:00:00')),
+    getRoutineBlocks(todayLocal),
     getTimeEntries(200),
   ])
 

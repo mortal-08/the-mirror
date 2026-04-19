@@ -7,10 +7,17 @@ import { useToast } from '@/components/ToastProvider'
 import { Plus, Clock, Calendar, Tag } from 'lucide-react'
 import DateTimePicker from '@/components/DateTimePicker'
 
+function toLocalDateKey(date: Date): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
 export default function ManualEntryForm({ categories }: { categories: any[] }) {
   const { toast } = useToast()
   const [description, setDescription] = useState('')
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+  const [date, setDate] = useState(() => toLocalDateKey(new Date()))
   const [pickerOpen, setPickerOpen] = useState(false)
   const [startTime, setStartTime] = useState(() => {
     const d = new Date()
@@ -104,6 +111,11 @@ export default function ManualEntryForm({ categories }: { categories: any[] }) {
     { label: '3h', h: 3, m: 0 },
   ]
 
+  const todayKey = toLocalDateKey(new Date())
+  const yesterday = new Date()
+  yesterday.setDate(yesterday.getDate() - 1)
+  const yesterdayKey = toLocalDateKey(yesterday)
+
   return (
     <div className="glass">
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem' }}>
@@ -123,15 +135,15 @@ export default function ManualEntryForm({ categories }: { categories: any[] }) {
           <div style={{ flex: 1, minWidth: '200px' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Calendar size={14} /> Date</label>
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <button type="button" className={date === new Date().toISOString().split('T')[0] ? 'btn-primary' : 'btn-secondary'}
+              <button type="button" className={date === todayKey ? 'btn-primary' : 'btn-secondary'}
                 style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}
-                onClick={() => setDate(new Date().toISOString().split('T')[0])}>
+                onClick={() => setDate(todayKey)}>
                 Today
               </button>
               <button type="button"
-                className={date === new Date(Date.now() - 86400000).toISOString().split('T')[0] ? 'btn-primary' : 'btn-secondary'}
+                className={date === yesterdayKey ? 'btn-primary' : 'btn-secondary'}
                 style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}
-                onClick={() => setDate(new Date(Date.now() - 86400000).toISOString().split('T')[0])}>
+                onClick={() => setDate(yesterdayKey)}>
                 Yesterday
               </button>
               <button type="button" className="btn-secondary" onClick={() => setPickerOpen(true)} style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', fontFamily: 'var(--font-mono)' }}>
@@ -255,7 +267,7 @@ export default function ManualEntryForm({ categories }: { categories: any[] }) {
       <DateTimePicker
          isOpen={pickerOpen}
          onClose={() => setPickerOpen(false)}
-         onSelect={(d) => setDate(d.toISOString().split('T')[0])}
+        onSelect={(d) => setDate(toLocalDateKey(d))}
          initialDate={new Date(date + 'T12:00:00')}
          mode="date"
          title="Select Date"

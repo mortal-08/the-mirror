@@ -41,6 +41,15 @@ export default function AnalyticsClient({ data, categories }: {
     return d.toLocaleDateString('en-US', { weekday: 'short' })
   }
 
+  const toLocalDateKey = (date: Date) => {
+    const y = date.getFullYear()
+    const m = String(date.getMonth() + 1).padStart(2, '0')
+    const d = String(date.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
+  }
+
+  const todayKey = toLocalDateKey(new Date())
+
   // Best Day - Global All Time
   const bestDay = useMemo(() => {
     return data.dailyData.length > 0 
@@ -101,7 +110,7 @@ export default function AnalyticsClient({ data, categories }: {
 
   const renderModal = () => {
     if (!dayModalData) return null
-    const isToday = dayModalData.date === new Date().toISOString().split('T')[0]
+    const isToday = dayModalData.date === todayKey
     return createPortal(
       <div style={{ position: 'fixed', inset: 0, zIndex: 999999, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', animation: 'fadeIn 0.2s ease' }}
         onClick={() => setDayModalData(null)}>
@@ -225,7 +234,7 @@ export default function AnalyticsClient({ data, categories }: {
         <div className="no-scrollbar" style={{ overflowX: 'auto', paddingBottom: '0.5rem', WebkitOverflowScrolling: 'touch' }}>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', height: 260, minWidth: '100%', width: 'max-content', padding: '0 0.5rem' }}>
             {dailyGraphData.map((day) => {
-              const isToday = day.date === new Date().toISOString().split('T')[0]
+              const isToday = day.date === todayKey
               return (
                 <div key={day.date} onClick={() => setDayModalData(day)} style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', width: '38px', minWidth: '38px', position: 'relative', cursor: 'pointer' }} className="bar-column">
                   <span style={{ fontSize: '0.55rem', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', opacity: 0, transition: 'opacity 0.2s', position: 'absolute', top: '-18px' }} className="bar-label">
@@ -332,7 +341,7 @@ export default function AnalyticsClient({ data, categories }: {
         </div>
         <div className="no-scrollbar" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', maxHeight: '400px', overflowY: 'auto', paddingRight: '0.5rem' }}>
           {[...data.dailyData].reverse().slice(0, 30).map((day) => {
-            const isToday = day.date === new Date().toISOString().split('T')[0]
+            const isToday = day.date === todayKey
             return (
               <div key={day.date}>
                 <button onClick={() => setDayModalData(day)} style={{

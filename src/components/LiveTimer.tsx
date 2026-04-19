@@ -15,21 +15,27 @@ const Btn = ({
   children,
   style,
   className,
+  disabled,
 }: {
   onClick: (e: any) => void
   children: React.ReactNode
   style?: React.CSSProperties
   className?: string
+  disabled?: boolean
 }) => (
   <button
     className={className}
+    disabled={disabled}
     onClick={(e) => {
+      if (disabled) return
       e.preventDefault()
       e.stopPropagation()
       onClick(e)
     }}
     style={{
       ...style,
+      opacity: disabled ? 0.6 : style?.opacity,
+      cursor: disabled ? 'not-allowed' : style?.cursor,
       touchAction: 'manipulation',
       WebkitTapHighlightColor: 'transparent',
     }}
@@ -56,6 +62,7 @@ export default function LiveTimer({ categories, todayBlocks = [], recentEntries 
   const [modalCat, setModalCat] = useState('')
   const [modalTagIds, setModalTagIds] = useState<string[]>([])
   const [portalReady, setPortalReady] = useState(false)
+  const [isSavingSession, setIsSavingSession] = useState(false)
 
   // Track time for active routine block
   useEffect(() => {
@@ -64,11 +71,29 @@ export default function LiveTimer({ categories, todayBlocks = [], recentEntries 
   }, [])
 
   const nowMinutes = (now.getHours() * 60) + now.getMinutes()
-  
-  const activeBlock = useMemo(
-    () => todayBlocks?.find((block) => block.startMinutes <= nowMinutes && nowMinutes < block.endMinutes),
-    [todayBlocks, nowMinutes]
+
+  const sortedTodayBlocks = useMemo(
+    () => [...(todayBlocks || [])].sort((a, b) => a.startMinutes - b.startMinutes),
+    [todayBlocks]
   )
+
+  const activeBlock = useMemo(
+    () => sortedTodayBlocks.find((block) => block.startMinutes <= nowMinutes && nowMinutes < block.endMinutes),
+    [sortedTodayBlocks, nowMinutes]
+  )
+
+  const nextBlock = useMemo(
+    () => sortedTodayBlocks.find((block) => block.startMinutes > nowMinutes),
+    [sortedTodayBlocks, nowMinutes]
+  )
+
+  const focusBlock = activeBlock || nextBlock || null
+  const showingNextBlock = !activeBlock && Boolean(nextBlock)
+
+  const minutesUntilNextBlock = useMemo(() => {
+    if (!nextBlock) return null
+    return Math.max(nextBlock.startMinutes - nowMinutes, 0)
+  }, [nextBlock, nowMinutes])
 
   // Pomodoro settings
   const [showSettings, setShowSettings] = useState(false)
@@ -80,6 +105,7 @@ export default function LiveTimer({ categories, todayBlocks = [], recentEntries 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const startTimeRef = useRef(0)
   const pausedElapsedRef = useRef(0)
+  const saveLockRef = useRef(false)
 
   // For portal
   useEffect(() => { setPortalReady(true) }, [])
@@ -241,6 +267,7 @@ export default function LiveTimer({ categories, todayBlocks = [], recentEntries 
     setRunning(false); setPaused(false)
     setStoppedDuration(dur); setModalCat(selectedCat)
     setModalTagIds(selectedTagIds)
+    setIsSavingSession(false); saveLockRef.current = false
     setFullscreen(false); setElapsed(0); pausedElapsedRef.current = 0
     setShowModal(true)
   }
@@ -248,20 +275,36 @@ export default function LiveTimer({ categories, todayBlocks = [], recentEntries 
   const doReset = () => {
     if (intervalRef.current) clearInterval(intervalRef.current)
     setRunning(false); setPaused(false); setElapsed(0); pausedElapsedRef.current = 0
+    setIsSavingSession(false); saveLockRef.current = false
   }
 
   const doSave = async () => {
-    if (stoppedDuration <= 0) return
-    const end = Date.now()
-    await createTimeEntry({
-      description: desc || undefined,
-      startTime: new Date(end - stoppedDuration * 1000),
-      endTime: new Date(end),
-      durationSeconds: stoppedDuration,
-      categoryId: modalCat || undefined,
-      tagIds: modalTagIds.length > 0 ? modalTagIds : undefined,
-    })
-    toast('Saved!', 'success'); setShowModal(false); setDesc(''); setStoppedDuration(0); setModalTagIds([])
+    if (stoppedDuration <= 0 || saveLockRef.current) return
+
+    saveLockRef.current = true
+    setIsSavingSession(true)
+
+    try {
+      const end = Date.now()
+      await createTimeEntry({
+        description: desc || undefined,
+        startTime: new Date(end - stoppedDuration * 1000),
+        endTime: new Date(end),
+        durationSeconds: stoppedDuration,
+        categoryId: modalCat || undefined,
+        tagIds: modalTagIds.length > 0 ? modalTagIds : undefined,
+      })
+      toast('Saved!', 'success')
+      setShowModal(false)
+      setDesc('')
+      setStoppedDuration(0)
+      setModalTagIds([])
+    } catch {
+      toast('Failed to save session.', 'error')
+    } finally {
+      setIsSavingSession(false)
+      saveLockRef.current = false
+    }
   }
 
   const fmt = (s: number) => {
@@ -269,6 +312,23 @@ export default function LiveTimer({ categories, todayBlocks = [], recentEntries 
     const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0')
     const sec = String(s % 60).padStart(2, '0')
     return `${h}:${m}:${sec}`
+  }
+
+  const formatBlockMinutes = (totalMinutes: number): string => {
+    const hours = Math.floor(totalMinutes / 60)
+    const minutes = totalMinutes % 60
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+  }
+
+  const formatStartsIn = (totalMinutes: number): string => {
+    if (totalMinutes <= 0) return 'Starts now'
+
+    const hours = Math.floor(totalMinutes / 60)
+    const minutes = totalMinutes % 60
+
+    if (hours === 0) return `Starts in ${minutes}m`
+    if (minutes === 0) return `Starts in ${hours}h`
+    return `Starts in ${hours}h ${minutes}m`
   }
 
   // Display
@@ -369,7 +429,7 @@ export default function LiveTimer({ categories, todayBlocks = [], recentEntries 
   // ── Save Modal (also portal) ──
   const saveModal = showModal && portalReady ? createPortal(
     <div style={{ position: 'fixed', inset: 0, zIndex: 999999, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
-      onClick={() => setShowModal(false)}>
+      onClick={() => { if (!isSavingSession) setShowModal(false) }}>
       <div onClick={(e) => e.stopPropagation()} style={{
         width: '100%', maxWidth: '380px', padding: '1.5rem',
         background: 'var(--bg-primary)', border: '1px solid var(--surface-border)',
@@ -377,7 +437,7 @@ export default function LiveTimer({ categories, todayBlocks = [], recentEntries 
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
           <h2 style={{ margin: 0, fontSize: '1rem' }}>Session Complete 🎯</h2>
-          <Btn onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }} className="">
+          <Btn onClick={() => setShowModal(false)} disabled={isSavingSession} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }} className="">
             <X size={16} />
           </Btn>
         </div>
@@ -424,11 +484,11 @@ export default function LiveTimer({ categories, todayBlocks = [], recentEntries 
         </div>
         <div style={{ marginBottom: '1rem' }}>
           <label style={{ fontSize: '0.7rem' }}>Description</label>
-          <input type="text" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="What did you work on?" autoFocus style={{ marginTop: '0.25rem' }} />
+          <input type="text" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="What did you work on?" autoFocus disabled={isSavingSession} style={{ marginTop: '0.25rem' }} />
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <Btn className="btn-primary" style={{ flex: 1, padding: '0.6rem' }} onClick={doSave}>Save</Btn>
-          <Btn className="btn-secondary" style={{ flex: 1, padding: '0.6rem' }} onClick={() => setShowModal(false)}>Discard</Btn>
+          <Btn className="btn-primary" style={{ flex: 1, padding: '0.6rem' }} onClick={doSave} disabled={isSavingSession}>{isSavingSession ? 'Saving...' : 'Save'}</Btn>
+          <Btn className="btn-secondary" style={{ flex: 1, padding: '0.6rem' }} onClick={() => setShowModal(false)} disabled={isSavingSession}>Discard</Btn>
         </div>
       </div>
     </div>,
@@ -455,17 +515,65 @@ export default function LiveTimer({ categories, todayBlocks = [], recentEntries 
         <div className="glass-glow reveal-up" style={{ '--reveal-delay': '150ms', padding: '1.25rem' } as React.CSSProperties}>
           
           {/* Active Routine Block Banner */}
-          {activeBlock && (
-            <div style={{ marginBottom: '1rem', padding: '0.75rem', background: 'var(--surface-active)', border: '1px solid var(--accent-primary)', borderRadius: '12px', display: 'flex', alignItems: 'flex-start', gap: '0.75rem', animation: 'fadeIn 0.5s ease-out' }}>
-               <div style={{ padding: '0.4rem', background: 'var(--accent-primary)', color: 'white', borderRadius: '8px' }}>
-                  <CalendarDays size={16} />
-               </div>
-               <div>
-                 <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--accent-primary)', fontWeight: 700, marginBottom: '2px' }}>Current Focus Routine</div>
-                 <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>{activeBlock.task}</div>
-               </div>
+          <div
+            style={{
+              marginBottom: '1rem',
+              padding: '0.75rem',
+              background: 'var(--surface-active)',
+              border: `1px solid ${activeBlock ? 'var(--accent-primary)' : (showingNextBlock ? 'var(--accent-secondary)' : 'var(--surface-border)')}`,
+              borderRadius: '12px',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '0.75rem',
+              animation: 'fadeIn 0.5s ease-out',
+            }}
+          >
+            <div
+              style={{
+                padding: '0.4rem',
+                background: activeBlock ? 'var(--accent-primary)' : (showingNextBlock ? 'var(--accent-secondary)' : 'var(--surface-border)'),
+                color: 'white',
+                borderRadius: '8px',
+              }}
+            >
+              <CalendarDays size={16} />
             </div>
-          )}
+
+            {focusBlock ? (
+              <div>
+                <div
+                  style={{
+                    fontSize: '0.65rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.1em',
+                    color: activeBlock ? 'var(--accent-primary)' : 'var(--accent-secondary)',
+                    fontWeight: 700,
+                    marginBottom: '2px',
+                  }}
+                >
+                  {activeBlock ? 'Current Focus Routine' : 'Next Focus Routine'}
+                </div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>{focusBlock.task}</div>
+                <div style={{ marginTop: '0.15rem', fontSize: '0.75rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
+                  {formatBlockMinutes(focusBlock.startMinutes)} - {formatBlockMinutes(focusBlock.endMinutes)}
+                </div>
+                {showingNextBlock && minutesUntilNextBlock !== null && (
+                  <div style={{ marginTop: '0.2rem', fontSize: '0.72rem', color: 'var(--accent-secondary)', fontWeight: 700 }}>
+                    {formatStartsIn(minutesUntilNextBlock)}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div>
+                <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-tertiary)', fontWeight: 700, marginBottom: '2px' }}>
+                  Focus Routine
+                </div>
+                <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                  No active or upcoming routine block for today.
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Top controls */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>

@@ -33,9 +33,31 @@ export default function DateTimePicker({ isOpen, onClose, onSelect, initialDate,
   const clockRef = useRef<HTMLDivElement>(null)
   const isDragging = useRef(false)
   const prevAngle = useRef<number | null>(null)
+  const isHoursListScrolling = useRef(false)
+  const isMinutesListScrolling = useRef(false)
+  const hoursScrollStopTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const minutesScrollStopTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const listDragState = useRef<{
+    column: 'hours' | 'minutes' | null
+    pointerId: number | null
+    startY: number
+    startScrollTop: number
+  }>({
+    column: null,
+    pointerId: null,
+    startY: 0,
+    startScrollTop: 0,
+  })
 
   useEffect(() => {
     setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (hoursScrollStopTimer.current) clearTimeout(hoursScrollStopTimer.current)
+      if (minutesScrollStopTimer.current) clearTimeout(minutesScrollStopTimer.current)
+    }
   }, [])
 
   useEffect(() => {
@@ -55,15 +77,67 @@ export default function DateTimePicker({ isOpen, onClose, onSelect, initialDate,
   const hr = activeDate.getHours()
   const mn = activeDate.getMinutes()
 
+  const centerListItem = (list: HTMLDivElement | null, index: number, behavior: ScrollBehavior = 'smooth') => {
+    if (!list) return
+    const child = list.children[index] as HTMLElement | undefined
+    if (!child) return
+
+    const targetTop = child.offsetTop - (list.clientHeight / 2) + (child.clientHeight / 2)
+    list.scrollTo({ top: Math.max(targetTop, 0), behavior })
+  }
+
+  const getCenteredIndex = (list: HTMLDivElement): number => {
+    const centerY = list.scrollTop + (list.clientHeight / 2)
+    let closestIndex = 0
+    let minDistance = Number.POSITIVE_INFINITY
+
+    Array.from(list.children).forEach((node, index) => {
+      const item = node as HTMLElement
+      const itemCenter = item.offsetTop + (item.offsetHeight / 2)
+      const distance = Math.abs(itemCenter - centerY)
+
+      if (distance < minDistance) {
+        minDistance = distance
+        closestIndex = index
+      }
+    })
+
+    return closestIndex
+  }
+
+  const markHoursScrolling = () => {
+    isHoursListScrolling.current = true
+    if (hoursScrollStopTimer.current) clearTimeout(hoursScrollStopTimer.current)
+    hoursScrollStopTimer.current = setTimeout(() => {
+      isHoursListScrolling.current = false
+      if (hoursListRef.current) {
+        const centeredHour = Math.max(0, Math.min(23, getCenteredIndex(hoursListRef.current)))
+        centerListItem(hoursListRef.current, centeredHour)
+      }
+    }, 140)
+  }
+
+  const markMinutesScrolling = () => {
+    isMinutesListScrolling.current = true
+    if (minutesScrollStopTimer.current) clearTimeout(minutesScrollStopTimer.current)
+    minutesScrollStopTimer.current = setTimeout(() => {
+      isMinutesListScrolling.current = false
+      if (minutesListRef.current) {
+        const centeredMinute = Math.max(0, Math.min(59, getCenteredIndex(minutesListRef.current)))
+        centerListItem(minutesListRef.current, centeredMinute)
+      }
+    }, 140)
+  }
+
   useEffect(() => {
-    if (isOpen && view === 'time' && hoursListRef.current && minutesListRef.current) {
-       const hChild = hoursListRef.current.children[hr] as HTMLElement
-       const mChild = minutesListRef.current.children[mn] as HTMLElement
-       setTimeout(() => {
-          if (hChild) hChild.scrollIntoView({ behavior: 'smooth', block: 'center' })
-          if (mChild) mChild.scrollIntoView({ behavior: 'smooth', block: 'center' })
-       }, 50)
-    }
+    if (!isOpen || view !== 'time') return
+
+    const timeout = setTimeout(() => {
+      if (!isHoursListScrolling.current) centerListItem(hoursListRef.current, hr)
+      if (!isMinutesListScrolling.current) centerListItem(minutesListRef.current, mn)
+    }, 50)
+
+    return () => clearTimeout(timeout)
   }, [hr, mn, isOpen, view])
 
   if (!isOpen || !mounted) return null
@@ -80,6 +154,71 @@ export default function DateTimePicker({ isOpen, onClose, onSelect, initialDate,
     target.setMinutes(m)
     if (timeMode === 'range' && rangeTarget === 'end') setSelectedEndDate(target)
     else setSelectedDate(target)
+  }
+
+  const handleHoursScroll = () => {
+    const list = hoursListRef.current
+    if (!list) return
+
+    markHoursScrolling()
+
+    const centeredHour = Math.max(0, Math.min(23, getCenteredIndex(list)))
+    if (centeredHour !== hr) handleSelectHour(centeredHour)
+  }
+
+  const handleMinutesScroll = () => {
+    const list = minutesListRef.current
+    if (!list) return
+
+    markMinutesScrolling()
+
+    const centeredMinute = Math.max(0, Math.min(59, getCenteredIndex(list)))
+    if (centeredMinute !== mn) handleSelectMinute(centeredMinute)
+  }
+
+  const beginListDrag = (column: 'hours' | 'minutes', e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType !== 'mouse') return
+
+    const list = column === 'hours' ? hoursListRef.current : minutesListRef.current
+    if (!list) return
+
+    listDragState.current = {
+      column,
+      pointerId: e.pointerId,
+      startY: e.clientY,
+      startScrollTop: list.scrollTop,
+    }
+
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
+
+  const updateListDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = listDragState.current
+    if (!drag.column || drag.pointerId !== e.pointerId) return
+
+    const list = drag.column === 'hours' ? hoursListRef.current : minutesListRef.current
+    if (!list) return
+
+    if (drag.column === 'hours') markHoursScrolling()
+    else markMinutesScrolling()
+
+    const deltaY = e.clientY - drag.startY
+    list.scrollTop = drag.startScrollTop - deltaY
+  }
+
+  const endListDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (listDragState.current.pointerId !== e.pointerId) return
+
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId)
+    }
+
+    listDragState.current = {
+      column: null,
+      pointerId: null,
+      startY: 0,
+      startScrollTop: 0,
+    }
   }
 
   const handleConfirm = () => {
@@ -128,7 +267,7 @@ export default function DateTimePicker({ isOpen, onClose, onSelect, initialDate,
     isDragging.current = true
     prevAngle.current = null
     updateTimeFromPointer(e)
-    ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+    e.currentTarget.setPointerCapture(e.pointerId)
   }
   const handlePointerMove = (e: React.PointerEvent) => {
     if (isDragging.current) updateTimeFromPointer(e)
@@ -136,7 +275,9 @@ export default function DateTimePicker({ isOpen, onClose, onSelect, initialDate,
   const handlePointerUp = (e: React.PointerEvent) => {
     isDragging.current = false
     prevAngle.current = null
-    ;(e.target as HTMLElement).releasePointerCapture(e.pointerId)
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId)
+    }
   }
 
   // Calendar Logic
@@ -247,7 +388,16 @@ export default function DateTimePicker({ isOpen, onClose, onSelect, initialDate,
                    {/* Hours Column */}
                    <div style={{ flex: 1, position: 'relative' }}>
                       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '40px', background: 'linear-gradient(to bottom, var(--bg-primary), transparent)', zIndex: 2, pointerEvents: 'none' }} />
-                      <div ref={hoursListRef} style={{ height: '100%', overflowY: 'auto', padding: '70px 0', scrollbarWidth: 'none', msOverflowStyle: 'none' }} className="no-scrollbar">
+                      <div
+                        ref={hoursListRef}
+                        onScroll={handleHoursScroll}
+                        onPointerDown={(e) => beginListDrag('hours', e)}
+                        onPointerMove={updateListDrag}
+                        onPointerUp={endListDrag}
+                        onPointerCancel={endListDrag}
+                        style={{ height: '100%', overflowY: 'auto', padding: '70px 0', scrollbarWidth: 'none', msOverflowStyle: 'none', cursor: 'ns-resize', userSelect: 'none' }}
+                        className="no-scrollbar"
+                      >
                          {hoursArray.map((h) => {
                             const isSelected = hr === h
                             return (
@@ -266,7 +416,16 @@ export default function DateTimePicker({ isOpen, onClose, onSelect, initialDate,
                    {/* Minutes Column */}
                    <div style={{ flex: 1, position: 'relative' }}>
                       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '40px', background: 'linear-gradient(to bottom, var(--bg-primary), transparent)', zIndex: 2, pointerEvents: 'none' }} />
-                      <div ref={minutesListRef} style={{ height: '100%', overflowY: 'auto', padding: '70px 0', scrollbarWidth: 'none', msOverflowStyle: 'none' }} className="no-scrollbar">
+                      <div
+                        ref={minutesListRef}
+                        onScroll={handleMinutesScroll}
+                        onPointerDown={(e) => beginListDrag('minutes', e)}
+                        onPointerMove={updateListDrag}
+                        onPointerUp={endListDrag}
+                        onPointerCancel={endListDrag}
+                        style={{ height: '100%', overflowY: 'auto', padding: '70px 0', scrollbarWidth: 'none', msOverflowStyle: 'none', cursor: 'ns-resize', userSelect: 'none' }}
+                        className="no-scrollbar"
+                      >
                          {minutesArray.map((m) => {
                             const isSelected = mn === m
                             return (

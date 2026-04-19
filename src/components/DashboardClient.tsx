@@ -112,6 +112,7 @@ export default function DashboardClient({ stats, categories, recentEntries, toda
   const todayPct = Math.min((stats.todaySeconds / stats.dailyGoal) * 100, 100)
   const weekPct = Math.min((stats.weekSeconds / stats.weeklyGoal) * 100, 100)
   const todayDashboardDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const todayKey = `${todayDashboardDate.getFullYear()}-${String(todayDashboardDate.getMonth() + 1).padStart(2, '0')}-${String(todayDashboardDate.getDate()).padStart(2, '0')}`
 
   const formatMinutes = (totalMinutes: number): string => {
     const hours = Math.floor(totalMinutes / 60)
@@ -119,12 +120,38 @@ export default function DashboardClient({ stats, categories, recentEntries, toda
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
   }
 
+  const formatStartsIn = (totalMinutes: number): string => {
+    if (totalMinutes <= 0) return 'Starts now'
+
+    const hours = Math.floor(totalMinutes / 60)
+    const minutes = totalMinutes % 60
+
+    if (hours === 0) return `Starts in ${minutes}m`
+    if (minutes === 0) return `Starts in ${hours}h`
+    return `Starts in ${hours}h ${minutes}m`
+  }
+
   const nowMinutes = (now.getHours() * 60) + now.getMinutes()
 
-  const activeBlock = useMemo(
-    () => todayBlocks?.find((block) => block.startMinutes <= nowMinutes && nowMinutes < block.endMinutes),
-    [todayBlocks, nowMinutes]
+  const sortedTodayBlocks = useMemo(
+    () => [...(todayBlocks || [])].sort((a, b) => a.startMinutes - b.startMinutes),
+    [todayBlocks]
   )
+
+  const activeBlock = useMemo(
+    () => sortedTodayBlocks.find((block) => block.startMinutes <= nowMinutes && nowMinutes < block.endMinutes),
+    [sortedTodayBlocks, nowMinutes]
+  )
+
+  const nextBlock = useMemo(
+    () => sortedTodayBlocks.find((block) => block.startMinutes > nowMinutes),
+    [sortedTodayBlocks, nowMinutes]
+  )
+
+  const minutesUntilNextBlock = useMemo(() => {
+    if (!nextBlock) return null
+    return Math.max(nextBlock.startMinutes - nowMinutes, 0)
+  }, [nextBlock, nowMinutes])
 
   const activeProgress = useMemo(() => {
     if (!activeBlock) return 0
@@ -142,7 +169,7 @@ export default function DashboardClient({ stats, categories, recentEntries, toda
     if (!journalText.trim()) return
     setJournalSaving(true)
     try {
-      await upsertJournal(new Date().toISOString().split('T')[0], journalText, journalMood || undefined)
+      await upsertJournal(todayKey, journalText, journalMood || undefined)
       toast('Journal saved!', 'success')
     } catch { toast('Failed to save.', 'error') }
     setJournalSaving(false)
@@ -259,11 +286,27 @@ export default function DashboardClient({ stats, categories, recentEntries, toda
                   </p>
                 </div>
               </>
+            ) : nextBlock ? (
+              <>
+                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'var(--accent-secondary)', opacity: 0.8, zIndex: 0 }} />
+                <div style={{ zIndex: 1 }}>
+                  <p style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--accent-secondary)', fontWeight: 700, marginBottom: '0.5rem' }}>Up Next</p>
+                  <p style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem', lineHeight: 1.2 }}>{nextBlock.task}</p>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
+                    {formatMinutes(nextBlock.startMinutes)} <span style={{ opacity: 0.5, margin: '0 4px' }}>—</span> {formatMinutes(nextBlock.endMinutes)}
+                  </p>
+                  {minutesUntilNextBlock !== null && (
+                    <p style={{ fontSize: '0.78rem', marginTop: '0.5rem', color: 'var(--accent-secondary)', fontWeight: 700, letterSpacing: '0.04em' }}>
+                      {formatStartsIn(minutesUntilNextBlock)}
+                    </p>
+                  )}
+                </div>
+              </>
             ) : (
               <div style={{ textAlign: 'center', color: 'var(--text-tertiary)', zIndex: 1 }}>
                 <Timer size={32} style={{ opacity: 0.4, margin: '0 auto 1rem auto' }} />
-                <p style={{ fontSize: '0.9rem' }}>No active routine block.</p>
-                <p style={{ fontSize: '0.75rem', marginTop: '0.5rem' }}>Take a break or set your next focus block.</p>
+                <p style={{ fontSize: '0.9rem' }}>{sortedTodayBlocks.length > 0 ? 'No active or upcoming blocks right now.' : 'No routine block scheduled for today.'}</p>
+                <p style={{ fontSize: '0.75rem', marginTop: '0.5rem' }}>{sortedTodayBlocks.length > 0 ? 'You have completed all planned blocks for now.' : 'Set your next focus block in Routine.'}</p>
               </div>
             )}
           </div>

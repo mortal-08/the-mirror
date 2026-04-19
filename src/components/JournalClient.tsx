@@ -7,17 +7,31 @@ import { useToast } from '@/components/ToastProvider'
 
 const MOODS = ['🔥', '😊', '😐', '😓', '💪', '🧠', '☕', '🌙']
 
+function toLocalDateKey(date: Date): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+function extractDateKey(value: string | Date): string {
+  if (value instanceof Date) {
+    return toLocalDateKey(value)
+  }
+  return String(value).slice(0, 10)
+}
+
 export default function JournalClient({ journals }: { journals: any[] }) {
   const { toast } = useToast()
-  const today = new Date().toISOString().split('T')[0]
-  const todayEntry = journals.find((j) => j.date.startsWith(today))
+  const today = toLocalDateKey(new Date())
+  const todayEntry = journals.find((j) => extractDateKey(j.date) === today)
 
   const [content, setContent] = useState(todayEntry?.content || '')
   const [mood, setMood] = useState(todayEntry?.mood || '')
   const [saving, setSaving] = useState(false)
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
-  const pastEntries = journals.filter((j) => !j.date.startsWith(today))
+  const pastEntries = journals.filter((j) => extractDateKey(j.date) !== today)
 
   const handleSave = async () => {
     if (!content.trim()) return
@@ -32,7 +46,7 @@ export default function JournalClient({ journals }: { journals: any[] }) {
   }
 
   const formatDate = (dateStr: string) => {
-    const d = new Date(dateStr)
+    const d = new Date(`${extractDateKey(dateStr)}T12:00:00`)
     return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
   }
 

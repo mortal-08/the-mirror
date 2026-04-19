@@ -93,13 +93,22 @@ export default function RoutinePlanner() {
     setPickerOpen(true)
   }
 
-  const handleTimeSelect = (date: Date) => {
-    const timeStr = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
-    if (pickerTarget === 'createStart') setStartTime(timeStr)
-    else if (pickerTarget === 'createEnd') setEndTime(timeStr)
-    else if (pickerTarget === 'editStart') setEditStartTime(timeStr)
-    else if (pickerTarget === 'editEnd') setEditEndTime(timeStr)
-    else if (pickerTarget === 'routineDate') {
+  const handleTimeSelect = (date: Date, endDate?: Date) => {
+    const toTimeStr = (value: Date) => `${String(value.getHours()).padStart(2, '0')}:${String(value.getMinutes()).padStart(2, '0')}`
+    const timeStr = toTimeStr(date)
+    const endTimeStr = endDate ? toTimeStr(endDate) : null
+
+    if (pickerTarget === 'createStart') {
+      setStartTime(timeStr)
+      if (endTimeStr) setEndTime(endTimeStr)
+    } else if (pickerTarget === 'createEnd') {
+      setEndTime(endTimeStr || timeStr)
+    } else if (pickerTarget === 'editStart') {
+      setEditStartTime(timeStr)
+      if (endTimeStr) setEditEndTime(endTimeStr)
+    } else if (pickerTarget === 'editEnd') {
+      setEditEndTime(endTimeStr || timeStr)
+    } else if (pickerTarget === 'routineDate') {
       const nextDay = new Date(selectedDate)
       nextDay.setFullYear(date.getFullYear(), date.getMonth(), date.getDate())
       setSelectedDate(normalizeToLocalDay(nextDay))

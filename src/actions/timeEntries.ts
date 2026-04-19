@@ -201,6 +201,13 @@ export async function getAnalyticsData(days: number = 7) {
   const userId = await getUserId()
   if (!userId) return { dailyData: [], categoryTotals: [], totalSeconds: 0, totalProductiveSeconds: 0 }
 
+  const toLocalDateKey = (date: Date) => {
+    const y = date.getFullYear()
+    const m = String(date.getMonth() + 1).padStart(2, '0')
+    const d = String(date.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
+  }
+
   const now = new Date()
   const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - days + 1)
 
@@ -217,7 +224,7 @@ export async function getAnalyticsData(days: number = 7) {
   for (let i = 0; i < days; i++) {
     const d = new Date(start)
     d.setDate(start.getDate() + i)
-    const key = d.toISOString().split('T')[0]
+    const key = toLocalDateKey(d)
     dailyMap[key] = { date: key, totalSeconds: 0, productiveSeconds: 0, categories: {}, entries: [] }
   }
 
@@ -230,7 +237,7 @@ export async function getAnalyticsData(days: number = 7) {
     const isProductive = !!entry.categoryId && entry.category?.isProductive === true
     totalSeconds += dur
     if (isProductive) totalProductiveSeconds += dur
-    const dayKey = new Date(entry.startTime).toISOString().split('T')[0]
+    const dayKey = toLocalDateKey(new Date(entry.startTime))
     if (dailyMap[dayKey]) {
       dailyMap[dayKey].totalSeconds += dur
       if (isProductive) dailyMap[dayKey].productiveSeconds += dur
