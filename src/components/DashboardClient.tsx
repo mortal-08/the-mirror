@@ -8,7 +8,6 @@ import { useToast } from '@/components/ToastProvider'
 import ManualEntryForm from '@/components/ManualEntryForm'
 import EntryList from '@/components/EntryList'
 import TodoList from '@/components/TodoList'
-import TodoList from '@/components/TodoList'
 import { ChevronRight } from 'lucide-react'
 
 const QUOTES = [
