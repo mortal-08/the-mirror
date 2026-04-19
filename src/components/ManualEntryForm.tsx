@@ -12,6 +12,13 @@ export default function ManualEntryForm({ categories }: { categories: any[] }) {
   const [description, setDescription] = useState('')
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [startTime, setStartTime] = useState(() => {
+    const d = new Date()
+    d.setMinutes(0)
+    d.setSeconds(0)
+    return d
+  })
+  const [timePickerOpen, setTimePickerOpen] = useState(false)
   const [hours, setHours] = useState(0)
   const [minutes, setMinutes] = useState(30)
   const [categoryId, setCategoryId] = useState('')
@@ -63,15 +70,14 @@ export default function ManualEntryForm({ categories }: { categories: any[] }) {
         return
       }
 
-      // Calculate end time from chosen date + current time - duration
-      const now = new Date()
-      const endTime = new Date(`${date}T${now.toTimeString().split(' ')[0]}`)
-      const startTime = new Date(endTime.getTime() - totalSeconds * 1000)
+      // Calculate start time from chosen date + chosen start time
+      const startTimeFinal = new Date(`${date}T${startTime.toTimeString().split(' ')[0]}`)
+      const endTimeFinal = new Date(startTimeFinal.getTime() + totalSeconds * 1000)
 
       await createTimeEntry({
         description: description || undefined,
-        startTime,
-        endTime,
+        startTime: startTimeFinal,
+        endTime: endTimeFinal,
         durationSeconds: totalSeconds,
         categoryId: cid || undefined,
         tagIds: tagIds.length > 0 ? tagIds : undefined,
@@ -112,23 +118,32 @@ export default function ManualEntryForm({ categories }: { categories: any[] }) {
           <input type="text" placeholder="e.g., Studied algorithms, Gym workout..." value={description} onChange={(e) => setDescription(e.target.value)} />
         </div>
 
-        {/* Date */}
-        <div>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Calendar size={14} /> Date</label>
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <button type="button" className={date === new Date().toISOString().split('T')[0] ? 'btn-primary' : 'btn-secondary'}
-              style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
-              onClick={() => setDate(new Date().toISOString().split('T')[0])}>
-              Today
-            </button>
-            <button type="button"
-              className={date === new Date(Date.now() - 86400000).toISOString().split('T')[0] ? 'btn-primary' : 'btn-secondary'}
-              style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
-              onClick={() => setDate(new Date(Date.now() - 86400000).toISOString().split('T')[0])}>
-              Yesterday
-            </button>
-            <button type="button" className="btn-secondary" onClick={() => setPickerOpen(true)} style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', fontFamily: 'var(--font-mono)' }}>
-               {date}
+        {/* Date & Time */}
+        <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: '200px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Calendar size={14} /> Date</label>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button type="button" className={date === new Date().toISOString().split('T')[0] ? 'btn-primary' : 'btn-secondary'}
+                style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}
+                onClick={() => setDate(new Date().toISOString().split('T')[0])}>
+                Today
+              </button>
+              <button type="button"
+                className={date === new Date(Date.now() - 86400000).toISOString().split('T')[0] ? 'btn-primary' : 'btn-secondary'}
+                style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}
+                onClick={() => setDate(new Date(Date.now() - 86400000).toISOString().split('T')[0])}>
+                Yesterday
+              </button>
+              <button type="button" className="btn-secondary" onClick={() => setPickerOpen(true)} style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', fontFamily: 'var(--font-mono)' }}>
+                 {date}
+              </button>
+            </div>
+          </div>
+
+          <div style={{ flex: '0 1 120px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Clock size={14} /> Start At</label>
+            <button type="button" className="btn-secondary" onClick={() => setTimePickerOpen(true)} style={{ width: '100%', padding: '0.4rem 0.75rem', fontSize: '0.85rem', fontFamily: 'var(--font-mono)' }}>
+              {startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
             </button>
           </div>
         </div>
@@ -241,10 +256,18 @@ export default function ManualEntryForm({ categories }: { categories: any[] }) {
          isOpen={pickerOpen}
          onClose={() => setPickerOpen(false)}
          onSelect={(d) => setDate(d.toISOString().split('T')[0])}
-         initialDate={new Date(date)}
-         defaultView="date"
+         initialDate={new Date(date + 'T12:00:00')}
          mode="date"
          title="Select Date"
+      />
+
+      <DateTimePicker
+        isOpen={timePickerOpen}
+        onClose={() => setTimePickerOpen(false)}
+        onSelect={(d) => setStartTime(d)}
+        initialDate={startTime}
+        mode="time"
+        title="Select Start Time"
       />
     </div>
   )

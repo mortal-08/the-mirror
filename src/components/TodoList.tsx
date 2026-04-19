@@ -168,7 +168,7 @@ export default function TodoList({
       </div>
 
       {/* Input Group */}
-      <form onSubmit={handleCreateTodo} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
+      <form onSubmit={handleCreateTodo} style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginTop: '0.5rem', background: 'var(--surface)', padding: '0.5rem 1rem', borderRadius: '16px', border: '1px solid var(--surface-border)' }}>
          <input
             type="text"
             value={newTask}
@@ -176,37 +176,31 @@ export default function TodoList({
             placeholder={`Add a task for ${selectedDateLabel}...`}
             disabled={isCreating}
             style={{
-               width: '100%',
+               flex: 1,
                background: 'transparent',
-               border: '1px solid var(--surface-border)',
-               borderRadius: '12px',
-               padding: '0.85rem 1rem',
-               fontSize: '0.9rem',
+               border: 'none',
+               fontSize: '0.95rem',
                color: 'var(--text-primary)',
                outline: 'none',
-               transition: 'border-color 0.2s'
+               minWidth: 0
             }}
-            onFocus={(e) => { e.target.style.borderColor = 'var(--accent-primary)' }}
-            onBlur={(e) => { e.target.style.borderColor = 'var(--surface-border)' }}
          />
-         <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-            <button
-               type="submit"
-               disabled={isCreating || !newTask.trim()}
-               style={{
-                  display: 'flex', alignItems: 'center', gap: '4px',
-                  background: 'transparent', border: 'none',
-                  color: 'var(--text-secondary)',
-                  fontSize: '0.8rem', fontWeight: 600,
-                  cursor: (isCreating || !newTask.trim()) ? 'not-allowed' : 'pointer',
-                  opacity: (isCreating || !newTask.trim()) ? 0.4 : 1,
-                  padding: '0.4rem 0.2rem', transition: 'color 0.2s'
-               }}
-               className="hover-text-primary"
-            >
-               {isCreating ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Add
-            </button>
-         </div>
+         <button
+            type="submit"
+            disabled={isCreating || !newTask.trim()}
+            style={{
+               display: 'flex', alignItems: 'center', justifyContent: 'center',
+               background: 'var(--accent-primary)', border: 'none', borderRadius: '50%',
+               color: '#fff', width: '28px', height: '28px',
+               cursor: (isCreating || !newTask.trim()) ? 'not-allowed' : 'pointer',
+               opacity: (isCreating || !newTask.trim()) ? 0.4 : 1,
+               transition: 'transform 0.2s',
+               transform: isCreating ? 'scale(0.9)' : 'scale(1)',
+               boxShadow: '0 4px 10px rgba(0,255,204,0.2)'
+            }}
+         >
+            {isCreating ? <Loader2 size={14} className="animate-spin" /> : <Plus size={16} strokeWidth={3} />}
+         </button>
       </form>
 
       {/* Filter Tabs */}
@@ -264,23 +258,26 @@ export default function TodoList({
                            transition: 'opacity 0.2s'
                         }}
                      >
-                        {/* Custom Checkbox */}
+                        {/* Custom Animated Checkbox */}
                         <button
                            onClick={() => handleToggleTodo(todo.id, !todo.isCompleted)}
                            disabled={isToggling || isDeleting}
                            style={{
-                              background: todo.isCompleted ? 'var(--accent-primary)' : 'transparent',
+                              position: 'relative',
+                              width: '22px', height: '22px',
+                              borderRadius: '50%',
                               border: `2px solid ${todo.isCompleted ? 'var(--accent-primary)' : 'var(--text-tertiary)'}`,
-                              borderRadius: '6px',
-                              width: '18px', height: '18px',
+                              background: todo.isCompleted ? 'var(--accent-primary)' : 'transparent',
                               display: 'flex', alignItems: 'center', justifyContent: 'center',
                               cursor: (isToggling || isDeleting) ? 'not-allowed' : 'pointer',
                               padding: 0,
                               color: 'var(--bg-primary)',
-                              transition: 'all 0.2s'
+                              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                              boxShadow: todo.isCompleted ? '0 0 10px rgba(0,255,204,0.3)' : 'none',
+                              flexShrink: 0
                            }}
                         >
-                           {todo.isCompleted && <Check size={12} strokeWidth={3} />}
+                           {todo.isCompleted && <Check size={14} strokeWidth={3.5} style={{ animation: 'bounceIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }} />}
                         </button>
 
                         <span style={{

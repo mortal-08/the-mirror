@@ -253,16 +253,44 @@ export default function SettingsClient({
                   </div>
                 </div>
 
-                <label className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(c.isProductive)}
-                    disabled={isUpdatingProductive}
-                    onChange={(e) => handleToggleProductive(c.id, e.target.checked)}
-                    className="h-4 w-4 cursor-pointer rounded border border-[var(--surface-border)] bg-[var(--surface)] accent-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
-                  />
-                  Counts as Productive Time
-                </label>
+                <div 
+                  onClick={() => !isUpdatingProductive && handleToggleProductive(c.id, !c.isProductive)}
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '0.6rem', 
+                    cursor: isUpdatingProductive ? 'not-allowed' : 'pointer',
+                    opacity: isUpdatingProductive ? 0.6 : 1,
+                    padding: '0.4rem 0.75rem',
+                    borderRadius: '20px',
+                    background: c.isProductive ? 'var(--accent-primary)15' : 'var(--surface-hover)',
+                    border: `1px solid ${c.isProductive ? 'var(--accent-primary)30' : 'var(--surface-border)'}`,
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    userSelect: 'none'
+                  }}
+                >
+                   <div style={{ 
+                     width: '30px', height: '16px', 
+                     background: c.isProductive ? 'var(--accent-primary)' : 'var(--text-tertiary)', 
+                     borderRadius: '10px', 
+                     position: 'relative', 
+                     transition: 'all 0.3s' 
+                   }}>
+                      <div style={{ 
+                        position: 'absolute', 
+                        top: '2px', 
+                        left: c.isProductive ? '16px' : '2px', 
+                        width: '12px', height: '12px', 
+                        borderRadius: '50%', 
+                        background: '#fff', 
+                        transition: 'left 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.2)'
+                      }} />
+                   </div>
+                   <span style={{ fontSize: '0.65rem', color: c.isProductive ? 'var(--text-primary)' : 'var(--text-tertiary)', fontWeight: 700, letterSpacing: '0.02em' }}>
+                     {isUpdatingProductive ? 'Updating...' : 'Productive'}
+                   </span>
+                </div>
 
                 <button onClick={() => handleDeleteCat(c.id)} style={{ marginLeft: '4px', color: '#ff5577', background: 'none', border: 'none', cursor: 'pointer' }}>
                   <Trash2 size={14} />

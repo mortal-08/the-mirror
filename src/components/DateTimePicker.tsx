@@ -21,14 +21,15 @@ export default function DateTimePicker({ isOpen, onClose, onSelect, initialDate,
   const [selectedEndDate, setSelectedEndDate] = useState<Date | null>(null)
   const [timeMode, setTimeMode] = useState<'single' | 'range'>('single')
   const [rangeTarget, setRangeTarget] = useState<'start' | 'end'>('start')
-  const [view, setView] = useState<'time' | 'date'>(defaultView)
+  const [view, setView] = useState<'time' | 'date'>(mode === 'date' ? 'date' : defaultView)
   const [calendarMonth, setCalendarMonth] = useState<Date>(() => {
     const d = initialDate ? new Date(initialDate) : new Date()
     d.setDate(1)
     return d
   })
   
-  const timesListRef = useRef<HTMLDivElement>(null)
+  const hoursListRef = useRef<HTMLDivElement>(null)
+  const minutesListRef = useRef<HTMLDivElement>(null)
   const clockRef = useRef<HTMLDivElement>(null)
   const isDragging = useRef(false)
 
@@ -42,54 +43,42 @@ export default function DateTimePicker({ isOpen, onClose, onSelect, initialDate,
        setSelectedEndDate(null)
        setTimeMode('single')
        setRangeTarget('start')
-       setView(defaultView)
+       setView(mode === 'date' ? 'date' : defaultView)
     }
-  }, [initialDate, isOpen, defaultView])
+  }, [initialDate, isOpen, defaultView, mode])
 
-  // Generate times (every 30 mins)
-  const times: Array<{ hours: number; minutes: number; label: string }> = []
-  for (let h = 0; h < 24; h++) {
-    for (let m = 0; m < 60; m += 30) {
-      const isPM = h >= 12
-      const displayH = h % 12 === 0 ? 12 : h % 12
-      const displayM = m === 0 ? '00' : m
-      times.push({
-        hours: h,
-        minutes: m,
-        label: `${displayH}:${displayM} ${isPM ? 'pm' : 'am'}`,
-      })
-    }
-  }
+  const hoursArray = Array.from({ length: 24 }, (_, i) => i)
+  const minutesArray = Array.from({ length: 60 }, (_, i) => i)
 
-  // Scroll to active time automatically
+  const activeDate = timeMode === 'range' && rangeTarget === 'end' ? (selectedEndDate || selectedDate) : selectedDate
+  const hr = activeDate.getHours()
+  const mn = activeDate.getMinutes()
+
   useEffect(() => {
-    if (isOpen && timesListRef.current) {
-      const hr = selectedDate.getHours()
-      const mn = selectedDate.getMinutes()
-      const nearestIdx = times.findIndex((t) => t.hours === hr && (Math.abs(t.minutes - mn) < 30 || t.minutes === 0))
-      
-      if (nearestIdx !== -1) {
-        const item = timesListRef.current.children[nearestIdx] as HTMLElement
-        if (item) {
-           setTimeout(() => {
-             item.scrollIntoView({ behavior: 'smooth', block: 'center' })
-           }, 100)
-        }
-      }
+    if (isOpen && view === 'time' && hoursListRef.current && minutesListRef.current) {
+       const hChild = hoursListRef.current.children[hr] as HTMLElement
+       const mChild = minutesListRef.current.children[mn] as HTMLElement
+       setTimeout(() => {
+          if (hChild) hChild.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          if (mChild) mChild.scrollIntoView({ behavior: 'smooth', block: 'center' })
+       }, 50)
     }
-  }, [isOpen])
+  }, [hr, mn, isOpen, view])
 
   if (!isOpen || !mounted) return null
 
-  const handleSelectTime = (h: number, m: number) => {
+  const handleSelectHour = (h: number) => {
     const target = timeMode === 'range' && rangeTarget === 'end' ? (selectedEndDate ? new Date(selectedEndDate) : new Date(selectedDate)) : new Date(selectedDate)
     target.setHours(h)
+    if (timeMode === 'range' && rangeTarget === 'end') setSelectedEndDate(target)
+    else setSelectedDate(target)
+  }
+
+  const handleSelectMinute = (m: number) => {
+    const target = timeMode === 'range' && rangeTarget === 'end' ? (selectedEndDate ? new Date(selectedEndDate) : new Date(selectedDate)) : new Date(selectedDate)
     target.setMinutes(m)
-    if (timeMode === 'range' && rangeTarget === 'end') {
-       setSelectedEndDate(target)
-    } else {
-       setSelectedDate(target)
-    }
+    if (timeMode === 'range' && rangeTarget === 'end') setSelectedEndDate(target)
+    else setSelectedDate(target)
   }
 
   const handleConfirm = () => {
@@ -103,7 +92,6 @@ export default function DateTimePicker({ isOpen, onClose, onSelect, initialDate,
 
   const updateTimeFromPointer = (e: React.PointerEvent | PointerEvent) => {
     if (!clockRef.current) return
-    const activeDate = timeMode === 'range' && rangeTarget === 'end' ? (selectedEndDate || selectedDate) : selectedDate
     const rect = clockRef.current.getBoundingClientRect()
     const cx = rect.left + rect.width / 2
     const cy = rect.top + rect.height / 2
@@ -112,21 +100,11 @@ export default function DateTimePicker({ isOpen, onClose, onSelect, initialDate,
     let angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90
     if (angle < 0) angle += 360
 
-    const totalMinutes = Math.round((angle / 360) * 12 * 60)
-    let newH = Math.floor(totalMinutes / 60)
-    const newM = Math.round((totalMinutes % 60) / 5) * 5
-    
-    let finalH = newH
-    if (newM === 60) finalH += 1
-    
-    // preserve AM/PM
-    const isPM = activeDate.getHours() >= 12
-    if (isPM && finalH < 12) finalH += 12
-    if (!isPM && finalH >= 12) finalH -= 12
+    // Map 360 degrees strictly to 60 minutes.
+    const newM = Math.round((angle / 360) * 60) % 60
     
     const nextDate = new Date(activeDate)
-    nextDate.setHours(finalH)
-    nextDate.setMinutes(newM === 60 ? 0 : newM)
+    nextDate.setMinutes(newM)
     
     if (timeMode === 'range' && rangeTarget === 'end') setSelectedEndDate(nextDate)
     else setSelectedDate(nextDate)
@@ -252,33 +230,44 @@ export default function DateTimePicker({ isOpen, onClose, onSelect, initialDate,
                    </div>
                 </div>
 
-                {/* Vertically Scrollable Times List */}
-                <div style={{ flex: 1, height: '100%', position: 'relative' }}>
-                   <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '40px', background: 'linear-gradient(to bottom, var(--bg-primary), transparent)', zIndex: 2, pointerEvents: 'none' }} />
-                   <div ref={timesListRef} style={{ height: '100%', overflowY: 'auto', padding: '40px 0', scrollbarWidth: 'none', msOverflowStyle: 'none' }} className="no-scrollbar">
-                      {times.map((t, idx) => {
-                         const isSelected = hr === t.hours && mn === t.minutes
-                         return (
-                            <div
-                              key={idx}
-                              onClick={() => handleSelectTime(t.hours, t.minutes)}
-                              style={{
-                                 padding: '0.65rem 0',
-                                 textAlign: 'center',
-                                 fontSize: isSelected ? '1.1rem' : '0.95rem',
-                                 fontWeight: isSelected ? 700 : 500,
-                                 color: isSelected ? 'var(--text-primary)' : 'var(--text-tertiary)',
-                                 cursor: 'pointer',
-                                 transition: 'all 0.2s',
-                                 opacity: isSelected ? 1 : 0.6
-                              }}
-                            >
-                               {t.label}
-                            </div>
-                         )
-                      })}
+                {/* Vertically Scrollable Times List (Dual Column) */}
+                <div style={{ flex: 1, height: '100%', position: 'relative', display: 'flex', gap: '0.5rem' }}>
+                   
+                   {/* Hours Column */}
+                   <div style={{ flex: 1, position: 'relative' }}>
+                      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '40px', background: 'linear-gradient(to bottom, var(--bg-primary), transparent)', zIndex: 2, pointerEvents: 'none' }} />
+                      <div ref={hoursListRef} style={{ height: '100%', overflowY: 'auto', padding: '70px 0', scrollbarWidth: 'none', msOverflowStyle: 'none' }} className="no-scrollbar">
+                         {hoursArray.map((h) => {
+                            const isSelected = hr === h
+                            return (
+                               <div key={h} onClick={() => handleSelectHour(h)}
+                                 style={{ padding: '0.65rem 0', textAlign: 'center', fontSize: isSelected ? '1.1rem' : '0.95rem', fontWeight: isSelected ? 700 : 500, color: isSelected ? 'var(--text-primary)' : 'var(--text-tertiary)', cursor: 'pointer', transition: 'all 0.2s', opacity: isSelected ? 1 : 0.4 }}>
+                                  {h.toString().padStart(2, '0')}h
+                               </div>
+                            )
+                         })}
+                      </div>
+                      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '40px', background: 'linear-gradient(to top, var(--bg-primary), transparent)', zIndex: 2, pointerEvents: 'none' }} />
                    </div>
-                   <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '40px', background: 'linear-gradient(to top, var(--bg-primary), transparent)', zIndex: 2, pointerEvents: 'none' }} />
+
+                   <div style={{ display: 'flex', alignItems: 'center', color: 'var(--text-tertiary)', fontWeight: 700 }}>:</div>
+
+                   {/* Minutes Column */}
+                   <div style={{ flex: 1, position: 'relative' }}>
+                      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '40px', background: 'linear-gradient(to bottom, var(--bg-primary), transparent)', zIndex: 2, pointerEvents: 'none' }} />
+                      <div ref={minutesListRef} style={{ height: '100%', overflowY: 'auto', padding: '70px 0', scrollbarWidth: 'none', msOverflowStyle: 'none' }} className="no-scrollbar">
+                         {minutesArray.map((m) => {
+                            const isSelected = mn === m
+                            return (
+                               <div key={m} onClick={() => handleSelectMinute(m)}
+                                 style={{ padding: '0.65rem 0', textAlign: 'center', fontSize: isSelected ? '1.1rem' : '0.95rem', fontWeight: isSelected ? 700 : 500, color: isSelected ? 'var(--text-primary)' : 'var(--text-tertiary)', cursor: 'pointer', transition: 'all 0.2s', opacity: isSelected ? 1 : 0.4 }}>
+                                  {m.toString().padStart(2, '0')}m
+                               </div>
+                            )
+                         })}
+                      </div>
+                      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '40px', background: 'linear-gradient(to top, var(--bg-primary), transparent)', zIndex: 2, pointerEvents: 'none' }} />
+                   </div>
                 </div>
               </div>
               

@@ -214,7 +214,7 @@ export default function DashboardClient({ stats, categories, recentEntries, toda
 
       {/* ═══ STAT CARDS ═══ */}
       <div className="grid-2">
-        <div className="stat-card glass reveal-up" style={{ '--reveal-delay': '80ms', padding: '2rem' } as React.CSSProperties}>
+        <div className="stat-card glass reveal-up hover-bg-surface-hover" onClick={() => router.push('/analytics?range=1')} style={{ '--reveal-delay': '80ms', padding: '2rem', cursor: 'pointer', transition: 'all 0.2s' } as React.CSSProperties}>
           <div className="stat-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Activity size={16} /> Today</div>
           <div className="stat-value" style={{ margin: '0.6rem 0' }}>{todayHours}h</div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
@@ -223,7 +223,7 @@ export default function DashboardClient({ stats, categories, recentEntries, toda
           </div>
           <div className="progress-track"><div className="progress-fill" style={{ width: `${todayPct}%` }} /></div>
         </div>
-        <div className="stat-card glass reveal-up" style={{ '--reveal-delay': '140ms', padding: '2rem' } as React.CSSProperties}>
+        <div className="stat-card glass reveal-up hover-bg-surface-hover" onClick={() => router.push('/analytics?range=7')} style={{ '--reveal-delay': '140ms', padding: '2rem', cursor: 'pointer', transition: 'all 0.2s' } as React.CSSProperties}>
           <div className="stat-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Database size={16} /> This Week</div>
           <div className="stat-value" style={{ margin: '0.6rem 0' }}>{weekHours}h</div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>

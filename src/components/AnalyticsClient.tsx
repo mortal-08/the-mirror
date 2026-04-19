@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { BarChart3, PieChart, TrendingUp, Calendar, Clock, ChevronDown } from 'lucide-react'
 
 type EntryData = { description: string; seconds: number; category: string; color: string; time: string }
@@ -12,11 +13,20 @@ export default function AnalyticsClient({ data7, data30, categories }: {
   data30: { dailyData: DayData[]; categoryTotals: CatTotal[]; totalSeconds: number; totalProductiveSeconds: number }
   categories: any[]
 }) {
-  const [range, setRange] = useState<'7' | '30'>('7')
+  const searchParams = useSearchParams()
+  const initialRange = searchParams?.get('range') || '7'
+  
+  const [range, setRange] = useState<'1' | '7' | '14' | '30'>(['1','7','14','30'].includes(initialRange) ? initialRange as any : '7')
   const [expandedDay, setExpandedDay] = useState<string | null>(null)
 
-  const data = range === '7' ? data7 : data30
-  const maxDaySeconds = Math.max(...data.dailyData.map(d => d.totalSeconds), 1)
+  const data = ['1','7'].includes(range) ? data7 : data30
+  const sliceCount = parseInt(range, 10)
+  
+  const filteredDailyData = useMemo(() => {
+    return data.dailyData.slice(-sliceCount)
+  }, [data, sliceCount])
+
+  const maxDaySeconds = Math.max(...filteredDailyData.map(d => d.totalSeconds), 1)
 
   const fmtHours = (s: number) => (s / 3600).toFixed(1)
   const fmtDuration = (s: number) => {
@@ -42,7 +52,19 @@ export default function AnalyticsClient({ data7, data30, categories }: {
     return d.toLocaleDateString('en-US', { weekday: 'short' })
   }
 
-  const totalCatSeconds = data.categoryTotals.reduce((sum, c) => sum + c.seconds, 0)
+  // Dynamically compute category totals for the selected window
+  const dynamicCategoryTotals = useMemo(() => {
+     return filteredDailyData.reduce((acc, day) => {
+        day.categories.forEach(cat => {
+           const existing = acc.find(c => c.name === cat.name)
+           if (existing) existing.seconds += cat.seconds
+           else acc.push({ ...cat })
+        })
+        return acc
+     }, [] as CatTotal[]).sort((a, b) => b.seconds - a.seconds)
+  }, [filteredDailyData])
+
+  const totalCatSeconds = dynamicCategoryTotals.reduce((sum, c) => sum + c.seconds, 0)
 
   return (
     <div className="motion-stack">
@@ -54,9 +76,11 @@ export default function AnalyticsClient({ data7, data30, categories }: {
           </h1>
           <p className="page-subtitle">See where your time goes — daily, weekly, and by category.</p>
         </div>
-        <div style={{ display: 'flex', gap: '0.35rem' }}>
-          <button className={range === '7' ? 'btn-primary' : 'btn-secondary'} onClick={() => setRange('7')} style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}>7 Days</button>
-          <button className={range === '30' ? 'btn-primary' : 'btn-secondary'} onClick={() => setRange('30')} style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}>30 Days</button>
+        <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+          <button className={range === '1' ? 'btn-primary' : 'btn-secondary'} onClick={() => setRange('1')} style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem' }}>Today</button>
+          <button className={range === '7' ? 'btn-primary' : 'btn-secondary'} onClick={() => setRange('7')} style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem' }}>7 Days</button>
+          <button className={range === '14' ? 'btn-primary' : 'btn-secondary'} onClick={() => setRange('14')} style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem' }}>14 Days</button>
+          <button className={range === '30' ? 'btn-primary' : 'btn-secondary'} onClick={() => setRange('30')} style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem' }}>30 Days</button>
         </div>
       </div>
 
@@ -84,37 +108,45 @@ export default function AnalyticsClient({ data7, data30, categories }: {
         <h3 style={{ marginBottom: '1.25rem', fontSize: '0.85rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
           <BarChart3 size={16} /> Daily Hours
         </h3>
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: range === '30' ? '2px' : '6px', height: 180, padding: '0 0.25rem' }}>
-          {data.dailyData.map((day) => {
-            const isToday = day.date === new Date().toISOString().split('T')[0]
-            return (
-              <div key={day.date} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', minWidth: 0 }}>
-                <span style={{ fontSize: '0.55rem', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>
-                  {day.totalSeconds > 0 ? fmtHours(day.totalSeconds) : ''}
-                </span>
-                <div style={{
-                  width: '100%', minHeight: 4, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
-                  borderRadius: '4px 4px 2px 2px', overflow: 'hidden',
-                  background: day.totalSeconds === 0 ? 'var(--surface)' : 'transparent',
-                  opacity: day.totalSeconds === 0 ? 0.3 : 1,
-                  boxShadow: isToday && day.totalSeconds > 0 ? '0 0 10px rgba(255,255,255,0.1)' : 'none',
-                }}>
-                  {day.categories.map((cat, idx) => (
-                    <div key={idx} style={{
-                      width: '100%',
-                      height: `${(cat.seconds / maxDaySeconds) * 100}%`,
-                      background: cat.color,
-                      minHeight: cat.seconds > 0 ? '2px' : '0'
-                    }} title={`${cat.name}: ${fmtHours(cat.seconds)}h`} />
-                  ))}
+        <div className="no-scrollbar" style={{ overflowX: 'auto', paddingBottom: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: range === '30' ? '4px' : '8px', height: 240, minWidth: range === '30' ? '700px' : 'auto', padding: '0 0.25rem' }}>
+            {filteredDailyData.map((day) => {
+              const isToday = day.date === new Date().toISOString().split('T')[0]
+              return (
+                <div key={day.date} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', minWidth: '22px', position: 'relative', cursor: 'pointer' }} className="bar-column">
+                  <span style={{ fontSize: '0.55rem', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', opacity: 0, transition: 'opacity 0.2s', position: 'absolute', top: '-20px' }} className="bar-label">
+                    {day.totalSeconds > 0 ? fmtHours(day.totalSeconds) : ''}
+                  </span>
+                  <div style={{
+                    width: '100%', minHeight: 4, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
+                    borderRadius: '4px 4px 2px 2px', overflow: 'hidden',
+                    background: day.totalSeconds === 0 ? 'var(--surface)' : 'transparent',
+                    opacity: day.totalSeconds === 0 ? 0.3 : 1, // Bar opacity base
+                    boxShadow: isToday && day.totalSeconds > 0 ? '0 0 12px rgba(255,255,255,0.1)' : 'none',
+                    transition: 'all 0.2s'
+                  }} className="bar-bars">
+                    {day.categories.map((cat, idx) => (
+                      <div key={idx} style={{
+                        width: '100%',
+                        height: `${(cat.seconds / maxDaySeconds) * 100}%`,
+                        background: cat.color,
+                        minHeight: cat.seconds > 0 ? '3px' : '0',
+                        transition: 'height 0.8s ease'
+                      }} title={`${cat.name}: ${Math.floor(cat.seconds/3600)}h ${Math.floor((cat.seconds%3600)/60)}m`} />
+                    ))}
+                  </div>
+                  <span style={{ fontSize: '0.6rem', color: isToday ? 'var(--text-primary)' : 'var(--text-tertiary)', fontWeight: isToday ? 700 : 400, whiteSpace: 'nowrap', marginTop: 'auto' }}>
+                    {range === '1' ? 'Today' : range === '7' ? formatDay(day.date) : formatDate(day.date).split(' ')[1]}
+                  </span>
                 </div>
-                <span style={{ fontSize: '0.55rem', color: isToday ? 'var(--text-primary)' : 'var(--text-tertiary)', fontWeight: isToday ? 700 : 400 }}>
-                  {range === '7' ? formatDay(day.date) : ''}
-                </span>
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
         </div>
+        <style dangerouslySetInnerHTML={{__html: `
+          .bar-column:hover .bar-label { opacity: 1 !important; transform: translateY(-2px); }
+          .bar-column:hover .bar-bars { opacity: 0.8; transform: scaleY(1.02); transform-origin: bottom; }
+        `}} />
       </div>
 
       {/* Category Breakdown */}
@@ -122,8 +154,8 @@ export default function AnalyticsClient({ data7, data30, categories }: {
         <h3 style={{ marginBottom: '1.25rem', fontSize: '0.85rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
           <PieChart size={16} /> Category Breakdown
         </h3>
-        {data.categoryTotals.length === 0 ? (
-          <p className="text-secondary" style={{ textAlign: 'center', padding: '2rem 0' }}>No data yet. Start tracking to see your breakdown.</p>
+        {dynamicCategoryTotals.length === 0 ? (
+          <p className="text-secondary" style={{ textAlign: 'center', padding: '2rem 0' }}>No data yet for this time range.</p>
         ) : (
           <>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '2rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
@@ -131,23 +163,23 @@ export default function AnalyticsClient({ data7, data30, categories }: {
                 <svg viewBox="0 0 36 36" style={{ width: '100%', height: '100%', transform: 'rotate(-90deg)' }}>
                   {(() => {
                     let offset = 0
-                    return data.categoryTotals.map((cat, i) => {
+                    return dynamicCategoryTotals.map((cat, i) => {
                       const pct = totalCatSeconds > 0 ? (cat.seconds / totalCatSeconds) * 100 : 0
                       const dash = `${pct} ${100 - pct}`
                       const el = <circle key={i} cx="18" cy="18" r="15.9" fill="none" stroke={cat.color} strokeWidth="3.2"
-                        strokeDasharray={dash} strokeDashoffset={-offset} strokeLinecap="round" />
+                        strokeDasharray={dash} strokeDashoffset={-offset} strokeLinecap="round" style={{ transition: 'stroke-dasharray 0.8s ease-out, stroke-dashoffset 0.8s ease-out' }} />
                       offset += pct
                       return el
                     })
                   })()}
                 </svg>
                 <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                  <span style={{ fontSize: '1.2rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{fmtHours(data.totalSeconds)}</span>
+                  <span style={{ fontSize: '1.2rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{fmtHours(totalCatSeconds)}</span>
                   <span style={{ fontSize: '0.6rem', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>hours</span>
                 </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                {data.categoryTotals.map((cat, i) => (
+                {dynamicCategoryTotals.map((cat, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <div style={{ width: 10, height: 10, borderRadius: '3px', background: cat.color, flexShrink: 0 }} />
                     <span style={{ fontSize: '0.8rem', fontWeight: 600, minWidth: 60 }}>{cat.name}</span>
@@ -158,12 +190,12 @@ export default function AnalyticsClient({ data7, data30, categories }: {
               </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              {data.categoryTotals.map((cat, i) => (
+              {dynamicCategoryTotals.map((cat, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   <div style={{ width: 8, height: 8, borderRadius: '50%', background: cat.color, flexShrink: 0 }} />
                   <span style={{ fontSize: '0.8rem', fontWeight: 600, minWidth: 70 }}>{cat.name}</span>
                   <div style={{ flex: 1, height: 8, background: 'var(--surface-hover)', borderRadius: '4px', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${totalCatSeconds > 0 ? (cat.seconds / totalCatSeconds) * 100 : 0}%`, background: cat.color, borderRadius: '4px', transition: 'width 0.5s ease' }} />
+                    <div style={{ height: '100%', width: `${totalCatSeconds > 0 ? (cat.seconds / totalCatSeconds) * 100 : 0}%`, background: cat.color, borderRadius: '4px', transition: 'width 0.8s ease' }} />
                   </div>
                   <span style={{ fontSize: '0.7rem', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', minWidth: 45, textAlign: 'right' }}>{fmtDuration(cat.seconds)}</span>
                 </div>

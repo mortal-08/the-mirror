@@ -4,6 +4,8 @@ import { getAnalyticsData } from '@/actions/timeEntries'
 import { getCategories } from '@/actions/categories'
 import AnalyticsClient from '@/components/AnalyticsClient'
 
+import { Suspense } from 'react'
+
 export default async function AnalyticsPage() {
   const userId = await getUserId()
   if (!userId) redirect('/login')
@@ -14,5 +16,9 @@ export default async function AnalyticsPage() {
     getCategories(),
   ])
 
-  return <AnalyticsClient data7={data7} data30={data30} categories={categories} />
+  return (
+    <Suspense fallback={<div style={{ padding: '2rem', textAlign: 'center' }}>Loading analytics...</div>}>
+      <AnalyticsClient data7={data7} data30={data30} categories={categories} />
+    </Suspense>
+  )
 }
