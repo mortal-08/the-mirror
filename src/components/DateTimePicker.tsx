@@ -39,7 +39,7 @@ export default function DateTimePicker({ isOpen, onClose, onSelect, initialDate,
   }, [initialDate, isOpen, defaultView])
 
   // Generate times (every 30 mins)
-  const times = []
+  const times: Array<{ hours: number; minutes: number; label: string }> = []
   for (let h = 0; h < 24; h++) {
     for (let m = 0; m < 60; m += 30) {
       const isPM = h >= 12
