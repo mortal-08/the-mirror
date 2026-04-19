@@ -1,7 +1,7 @@
 'use client'
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
-import { CalendarDays, CheckCircle2, ListTodo, Loader2, Plus, Trash2 } from 'lucide-react'
+import { CheckCircle2, Circle, ListTodo, Loader2, Plus, Trash2, Check } from 'lucide-react'
 import { createTodo, deleteTodo, getTodos, toggleTodo } from '@/actions/todos'
 import { useToast } from '@/components/ToastProvider'
 
@@ -26,9 +26,9 @@ type TodoFilter = 'ALL' | 'OPEN' | 'DONE'
 
 export default function TodoList({
   selectedDate,
-  title = 'Daily Todo',
+  title = "Today's Accountability Todos",
   compact = false,
-  showDateBadge = true,
+  showDateBadge = false,
 }: TodoListProps) {
   const { toast } = useToast()
   const [todos, setTodos] = useState<TodoItem[]>([])
@@ -150,128 +150,171 @@ export default function TodoList({
   }
 
   return (
-    <section
-      className={compact ? 'rounded-2xl border border-[var(--surface-border)] bg-[var(--surface)] p-4' : 'glass reveal-up p-6'}
-      style={compact ? undefined : ({ '--reveal-delay': '120ms' } as React.CSSProperties)}
-    >
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <ListTodo size={18} color="var(--accent-secondary)" />
-          <h3 className="text-sm font-bold uppercase tracking-[0.12em] text-[var(--text-secondary)]">{title}</h3>
-        </div>
-
-        {showDateBadge && (
-          <span className="inline-flex items-center gap-1 rounded-full border border-[var(--surface-border)] bg-[var(--surface)] px-2 py-1 text-xs text-[var(--text-tertiary)]">
-            <CalendarDays size={12} />
-            {selectedDateLabel}
-          </span>
-        )}
+    <section className="glass" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      
+      {/* Header Block */}
+      <div>
+         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+            <ListTodo size={18} color="var(--accent-primary)" />
+            <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '0.03em' }}>{title}</h3>
+         </div>
+         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+            <CheckCircle2 size={13} style={{ opacity: 0.8 }} /> {completedCount} done
+            <span style={{ opacity: 0.3 }}>|</span>
+            {pendingCount} pending
+            <span style={{ opacity: 0.3 }}>|</span>
+            {completionPercent}% complete
+         </div>
       </div>
 
-      <div className="mb-4 rounded-xl border border-[var(--surface-border)] bg-[var(--surface)] p-3">
-        <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-[var(--text-secondary)]">
-          <span className="inline-flex items-center gap-1 rounded-full bg-[var(--surface-active)] px-2 py-1 font-semibold">
-            <CheckCircle2 size={12} /> {completedCount} done
-          </span>
-          <span className="rounded-full border border-[var(--surface-border)] px-2 py-1">{pendingCount} pending</span>
-          <span className="rounded-full border border-[var(--surface-border)] px-2 py-1">{completionPercent}% complete</span>
-        </div>
-        <div className="h-1.5 overflow-hidden rounded-full bg-[var(--bg-tertiary)]">
-          <div className="h-full rounded-full" style={{ width: `${completionPercent}%`, background: 'var(--accent-gradient)' }} />
-        </div>
-      </div>
-
-      <form onSubmit={handleCreateTodo} className="mb-4 flex items-center gap-2">
-        <input
-          type="text"
-          value={newTask}
-          onChange={(e) => setNewTask(e.target.value)}
-          placeholder={`Add a task for ${selectedDateLabel}...`}
-          disabled={isCreating}
-          className="w-full rounded-xl border border-[var(--surface-border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--surface-border-hover)] disabled:cursor-not-allowed disabled:opacity-60"
-        />
-        <button
-          type="submit"
-          disabled={isCreating || !newTask.trim()}
-          className="inline-flex items-center gap-1 rounded-xl border border-transparent bg-[var(--accent-primary)] px-3 py-2 text-sm font-semibold text-[var(--text-inverse)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {isCreating ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-          Add
-        </button>
+      {/* Input Group */}
+      <form onSubmit={handleCreateTodo} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
+         <input
+            type="text"
+            value={newTask}
+            onChange={(e) => setNewTask(e.target.value)}
+            placeholder={\`Add a task for \${selectedDateLabel}...\`}
+            disabled={isCreating}
+            style={{
+               width: '100%',
+               background: 'transparent',
+               border: '1px solid var(--surface-border)',
+               borderRadius: '12px',
+               padding: '0.85rem 1rem',
+               fontSize: '0.9rem',
+               color: 'var(--text-primary)',
+               outline: 'none',
+               transition: 'border-color 0.2s'
+            }}
+            onFocus={(e) => { e.target.style.borderColor = 'var(--accent-primary)' }}
+            onBlur={(e) => { e.target.style.borderColor = 'var(--surface-border)' }}
+         />
+         <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+            <button
+               type="submit"
+               disabled={isCreating || !newTask.trim()}
+               style={{
+                  display: 'flex', alignItems: 'center', gap: '4px',
+                  background: 'transparent', border: 'none',
+                  color: 'var(--text-secondary)',
+                  fontSize: '0.8rem', fontWeight: 600,
+                  cursor: (isCreating || !newTask.trim()) ? 'not-allowed' : 'pointer',
+                  opacity: (isCreating || !newTask.trim()) ? 0.4 : 1,
+                  padding: '0.4rem 0.2rem', transition: 'color 0.2s'
+               }}
+               className="hover-text-primary"
+            >
+               {isCreating ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Add
+            </button>
+         </div>
       </form>
 
-      <div className="mb-3 flex items-center gap-2">
-        {(['ALL', 'OPEN', 'DONE'] as const).map((value) => (
-          <button
-            key={value}
-            type="button"
-            onClick={() => setFilter(value)}
-            className={`rounded-full px-3 py-1 text-xs font-semibold tracking-[0.08em] transition ${
-              filter === value
-                ? 'bg-[var(--surface-active)] text-[var(--text-primary)]'
-                : 'border border-[var(--surface-border)] text-[var(--text-secondary)] hover:border-[var(--surface-border-hover)]'
-            }`}
-          >
-            {value}
-          </button>
-        ))}
+      {/* Filter Tabs */}
+      <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem', borderBottom: '1px solid var(--surface-border)', paddingBottom: '0.5rem' }}>
+         {(['ALL', 'OPEN', 'DONE'] as const).map((value) => {
+            const isActive = filter === value
+            return (
+               <button
+                  key={value}
+                  type="button"
+                  onClick={() => setFilter(value)}
+                  style={{
+                     background: 'transparent', border: 'none',
+                     fontSize: '0.75rem', fontWeight: isActive ? 700 : 500,
+                     letterSpacing: '0.08em',
+                     color: isActive ? 'var(--text-primary)' : 'var(--text-tertiary)',
+                     cursor: 'pointer',
+                     padding: '0.2rem 0',
+                     textTransform: 'uppercase',
+                     transition: 'all 0.2s'
+                  }}
+               >
+                  {value}
+               </button>
+            )
+         })}
       </div>
 
-      {isLoading ? (
-        <div className="flex items-center gap-2 rounded-xl border border-[var(--surface-border)] bg-[var(--surface)] px-3 py-4 text-sm text-[var(--text-secondary)]">
-          <Loader2 size={16} className="animate-spin" /> Loading todos...
-        </div>
-      ) : sortedTodos.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-[var(--surface-border)] px-3 py-4 text-sm text-[var(--text-secondary)]">
-          No tasks for this date yet.
-        </div>
-      ) : filteredTodos.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-[var(--surface-border)] px-3 py-4 text-sm text-[var(--text-secondary)]">
-          No tasks in this filter.
-        </div>
-      ) : (
-        <ul className="space-y-2">
-          {filteredTodos.map((todo) => {
-            const isToggling = togglingIds.has(todo.id)
-            const isDeleting = deletingIds.has(todo.id)
+      {/* List */}
+      <div style={{ minHeight: '150px' }}>
+         {isLoading ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-tertiary)', fontSize: '0.85rem', padding: '1rem 0' }}>
+               <Loader2 size={16} className="animate-spin" /> Loading...
+            </div>
+         ) : sortedTodos.length === 0 ? (
+            <div style={{ color: 'var(--text-tertiary)', fontSize: '0.85rem', padding: '1rem 0' }}>
+               No tasks yet. Get started!
+            </div>
+         ) : filteredTodos.length === 0 ? (
+            <div style={{ color: 'var(--text-tertiary)', fontSize: '0.85rem', padding: '1rem 0' }}>
+               No tasks match this filter.
+            </div>
+         ) : (
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+               {filteredTodos.map((todo) => {
+                  const isToggling = togglingIds.has(todo.id)
+                  const isDeleting = deletingIds.has(todo.id)
 
-            return (
-              <li
-                key={todo.id}
-                className={`flex items-center gap-3 rounded-xl border px-3 py-2 transition ${
-                  todo.isCompleted
-                    ? 'border-[var(--surface-border)] bg-[var(--surface-active)]'
-                    : 'border-[var(--surface-border)] bg-[var(--surface)]'
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={todo.isCompleted}
-                  onChange={(e) => handleToggleTodo(todo.id, e.target.checked)}
-                  disabled={isToggling || isDeleting}
-                  className="h-4 w-4 cursor-pointer accent-[var(--accent-primary)] disabled:cursor-not-allowed"
-                />
+                  return (
+                     <li
+                        key={todo.id}
+                        style={{
+                           display: 'flex', alignItems: 'center', gap: '12px',
+                           padding: '0.2rem 0', opacity: todo.isCompleted ? 0.6 : 1,
+                           transition: 'opacity 0.2s'
+                        }}
+                     >
+                        {/* Custom Checkbox */}
+                        <button
+                           onClick={() => handleToggleTodo(todo.id, !todo.isCompleted)}
+                           disabled={isToggling || isDeleting}
+                           style={{
+                              background: todo.isCompleted ? 'var(--accent-primary)' : 'transparent',
+                              border: \`2px solid \${todo.isCompleted ? 'var(--accent-primary)' : 'var(--text-tertiary)'}\`,
+                              borderRadius: '6px',
+                              width: '18px', height: '18px',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              cursor: (isToggling || isDeleting) ? 'not-allowed' : 'pointer',
+                              padding: 0,
+                              color: 'var(--bg-primary)',
+                              transition: 'all 0.2s'
+                           }}
+                        >
+                           {todo.isCompleted && <Check size={12} strokeWidth={3} />}
+                        </button>
 
-                <span
-                  className={`flex-1 text-sm ${todo.isCompleted ? 'text-[var(--text-secondary)] line-through' : 'text-[var(--text-primary)]'}`}
-                >
-                  {todo.task}
-                </span>
+                        <span style={{
+                           flex: 1, fontSize: '0.95rem',
+                           color: todo.isCompleted ? 'var(--text-tertiary)' : 'var(--text-primary)',
+                           textDecoration: todo.isCompleted ? 'line-through' : 'none'
+                        }}>
+                           {todo.task}
+                        </span>
 
-                <button
-                  type="button"
-                  onClick={() => handleDeleteTodo(todo.id)}
-                  disabled={isDeleting || isToggling}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-secondary)] transition hover:bg-[var(--surface-hover)] hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-40"
-                  aria-label="Delete todo"
-                >
-                  {isDeleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                </button>
-              </li>
-            )
-          })}
-        </ul>
-      )}
+                        <button
+                           type="button"
+                           onClick={() => handleDeleteTodo(todo.id)}
+                           disabled={isDeleting || isToggling}
+                           style={{
+                              background: 'transparent', border: 'none',
+                              color: 'var(--text-tertiary)', cursor: 'pointer',
+                              padding: '4px', display: 'flex', opacity: 0.6
+                           }}
+                           className="hover-text-red"
+                        >
+                           {isDeleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                        </button>
+                     </li>
+                  )
+               })}
+            </ul>
+         )}
+      </div>
+
+      <style dangerouslySetInnerHTML={{__html: \`
+         .hover-text-primary:hover { color: var(--accent-primary) !important; }
+         .hover-text-red:hover { color: #ff5577 !important; opacity: 1 !important; }
+      \`}} />
     </section>
   )
 }

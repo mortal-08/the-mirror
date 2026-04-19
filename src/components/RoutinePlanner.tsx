@@ -5,6 +5,7 @@ import { CalendarDays, Check, Clock3, GripVertical, Loader2, Pencil, Plus, Trash
 import { createRoutineBlock, deleteRoutineBlock, getRoutineBlocks, reorderRoutineBlocks, updateRoutineBlock } from '@/actions/routines'
 import { useToast } from '@/components/ToastProvider'
 import TodoList from '@/components/TodoList'
+import DateTimePicker from '@/components/DateTimePicker'
 
 type RoutineBlock = {
   id: string
@@ -77,6 +78,28 @@ export default function RoutinePlanner() {
   const [task, setTask] = useState('')
   const [startTime, setStartTime] = useState('09:00')
   const [endTime, setEndTime] = useState('10:30')
+
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [pickerTarget, setPickerTarget] = useState<'createStart' | 'createEnd' | 'editStart' | 'editEnd' | null>(null)
+  const [pickerInitialDate, setPickerInitialDate] = useState<Date>(new Date())
+
+  const openPicker = (target: 'createStart' | 'createEnd' | 'editStart' | 'editEnd', currentStr: string) => {
+    const [h, m] = currentStr.split(':').map(Number)
+    const d = new Date()
+    d.setHours(h || 0)
+    d.setMinutes(m || 0)
+    setPickerInitialDate(d)
+    setPickerTarget(target)
+    setPickerOpen(true)
+  }
+
+  const handleTimeSelect = (date: Date) => {
+    const timeStr = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+    if (pickerTarget === 'createStart') setStartTime(timeStr)
+    else if (pickerTarget === 'createEnd') setEndTime(timeStr)
+    else if (pickerTarget === 'editStart') setEditStartTime(timeStr)
+    else if (pickerTarget === 'editEnd') setEditEndTime(timeStr)
+  }
 
   const selectedDateKey = useMemo(() => dateKey(selectedDate), [selectedDate])
   const todayDate = useMemo(() => normalizeToLocalDay(now), [now.getFullYear(), now.getMonth(), now.getDate()])
@@ -267,11 +290,11 @@ export default function RoutinePlanner() {
           <input type="text" value={task} onChange={(e) => setTask(e.target.value)} placeholder="Task (e.g. Deep Work)..." style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', padding: '0.6rem 0.8rem', fontSize: '0.85rem', color: 'var(--text-primary)' }} />
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0 0.5rem', borderLeft: '1px solid var(--surface-border)' }}>
             <span style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', fontWeight: 600 }}>Start</span>
-            <input type="time" step={60} value={startTime} onChange={(e) => setStartTime(e.target.value)} style={{ background: 'transparent', border: 'none', outline: 'none', fontSize: '0.85rem', color: 'var(--text-secondary)', padding: '0.2rem', cursor: 'pointer' }} />
+            <button type="button" onClick={() => openPicker('createStart', startTime)} style={{ background: 'transparent', border: 'none', outline: 'none', fontSize: '0.85rem', color: 'var(--text-secondary)', padding: '0.2rem', cursor: 'pointer', fontFamily: 'var(--font-mono)' }}>{startTime}</button>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0 0.5rem', borderLeft: '1px solid var(--surface-border)' }}>
             <span style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', fontWeight: 600 }}>End</span>
-            <input type="time" step={60} value={endTime} onChange={(e) => setEndTime(e.target.value)} style={{ background: 'transparent', border: 'none', outline: 'none', fontSize: '0.85rem', color: 'var(--text-secondary)', padding: '0.2rem', cursor: 'pointer' }} />
+            <button type="button" onClick={() => openPicker('createEnd', endTime)} style={{ background: 'transparent', border: 'none', outline: 'none', fontSize: '0.85rem', color: 'var(--text-secondary)', padding: '0.2rem', cursor: 'pointer', fontFamily: 'var(--font-mono)' }}>{endTime}</button>
           </div>
           <button type="submit" disabled={isCreating} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--accent-primary)', color: 'white', border: 'none', borderRadius: '8px', width: '36px', height: '36px', cursor: 'pointer', transition: 'all 0.2s', opacity: isCreating ? 0.6 : 1 }}>
              {isCreating ? <Loader2 size={16} className="animate-spin" /> : <Plus size={18} />}
@@ -332,8 +355,8 @@ export default function RoutinePlanner() {
                     {isEditing ? (
                       <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto auto', gap: '0.5rem', alignItems: 'center', zIndex: 1 }}>
                         <input type="text" value={editTask} onChange={(e) => setEditTask(e.target.value)} style={{ width: '100%', background: 'var(--bg-primary)', border: '1px solid var(--surface-border)', padding: '0.4rem 0.6rem', borderRadius: '6px', fontSize: '0.85rem', color: 'white', outline: 'none' }} />
-                        <input type="time" step={60} value={editStartTime} onChange={(e) => setEditStartTime(e.target.value)} style={{ background: 'var(--bg-primary)', border: '1px solid var(--surface-border)', padding: '0.4rem', borderRadius: '6px', color: 'var(--text-secondary)', fontSize: '0.85rem', outline: 'none' }} />
-                        <input type="time" step={60} value={editEndTime} onChange={(e) => setEditEndTime(e.target.value)} style={{ background: 'var(--bg-primary)', border: '1px solid var(--surface-border)', padding: '0.4rem', borderRadius: '6px', color: 'var(--text-secondary)', fontSize: '0.85rem', outline: 'none' }} />
+                        <button type="button" onClick={() => openPicker('editStart', editStartTime)} style={{ background: 'var(--bg-primary)', border: '1px solid var(--surface-border)', padding: '0.4rem', borderRadius: '6px', color: 'var(--text-secondary)', fontSize: '0.85rem', outline: 'none', cursor: 'pointer', fontFamily: 'var(--font-mono)' }}>{editStartTime}</button>
+                        <button type="button" onClick={() => openPicker('editEnd', editEndTime)} style={{ background: 'var(--bg-primary)', border: '1px solid var(--surface-border)', padding: '0.4rem', borderRadius: '6px', color: 'var(--text-secondary)', fontSize: '0.85rem', outline: 'none', cursor: 'pointer', fontFamily: 'var(--font-mono)' }}>{editEndTime}</button>
                         <div style={{ display: 'flex', gap: '0.25rem' }}>
                           <button onClick={saveEditBlock} disabled={isSavingEdit} style={{ background: 'var(--surface-border)', color: '#10b981', border: 'none', width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Check size={14} /></button>
                           <button onClick={cancelEditBlock} style={{ background: 'var(--surface-border)', color: 'var(--text-secondary)', border: 'none', width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><X size={14} /></button>
@@ -374,6 +397,13 @@ export default function RoutinePlanner() {
             showDateBadge={false}
          />
       </section>
+
+      <DateTimePicker
+         isOpen={pickerOpen}
+         onClose={() => setPickerOpen(false)}
+         onSelect={handleTimeSelect}
+         initialDate={pickerInitialDate}
+      />
       
       <style dangerouslySetInnerHTML={{__html: `
         .routine-form-grid { grid-template-columns: minmax(0, 1fr) auto auto auto; }

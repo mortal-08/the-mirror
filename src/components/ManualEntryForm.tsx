@@ -5,11 +5,13 @@ import { createTimeEntry } from '@/actions/timeEntries'
 import { createCategory } from '@/actions/categories'
 import { useToast } from '@/components/ToastProvider'
 import { Plus, Clock, Calendar, Tag } from 'lucide-react'
+import DateTimePicker from '@/components/DateTimePicker'
 
 export default function ManualEntryForm({ categories }: { categories: any[] }) {
   const { toast } = useToast()
   const [description, setDescription] = useState('')
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+  const [pickerOpen, setPickerOpen] = useState(false)
   const [hours, setHours] = useState(0)
   const [minutes, setMinutes] = useState(30)
   const [categoryId, setCategoryId] = useState('')
@@ -125,8 +127,9 @@ export default function ManualEntryForm({ categories }: { categories: any[] }) {
               onClick={() => setDate(new Date(Date.now() - 86400000).toISOString().split('T')[0])}>
               Yesterday
             </button>
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
-              style={{ padding: '0.5rem 0.75rem', fontSize: '0.85rem', maxWidth: '160px' }} />
+            <button type="button" className="btn-secondary" onClick={() => setPickerOpen(true)} style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', fontFamily: 'var(--font-mono)' }}>
+               {date}
+            </button>
           </div>
         </div>
 
@@ -233,6 +236,15 @@ export default function ManualEntryForm({ categories }: { categories: any[] }) {
           {loading ? 'Saving...' : 'Log Entry'}
         </button>
       </form>
+
+      <DateTimePicker
+         isOpen={pickerOpen}
+         onClose={() => setPickerOpen(false)}
+         onSelect={(d) => setDate(d.toISOString().split('T')[0])}
+         initialDate={new Date(date)}
+         defaultView="date"
+         title="Select Date"
+      />
     </div>
   )
 }
