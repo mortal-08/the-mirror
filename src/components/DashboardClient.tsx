@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Activity, Database, BookOpen, Clock, Timer, History, Settings, Shuffle, BarChart3, CalendarDays } from 'lucide-react'
 import { upsertJournal } from '@/actions/journal'
