@@ -7,6 +7,7 @@ import { upsertJournal } from '@/actions/journal'
 import { useToast } from '@/components/ToastProvider'
 import ManualEntryForm from '@/components/ManualEntryForm'
 import EntryList from '@/components/EntryList'
+import TodoList from '@/components/TodoList'
 
 const QUOTES = [
   { text: "The key is in not spending time, but in investing it.", author: "Stephen R. Covey" },
@@ -84,18 +85,8 @@ export default function DashboardClient({ stats, categories, tags, recentEntries
   const [hoveredOrb, setHoveredOrb] = useState<string | null>(null)
   const [particles, setParticles] = useState<{x:number;y:number;size:number;dur:number;del:number}[]>([])
 
-  // Tomorrow plan as time blocks
-  const [plan, setPlan] = useState<PlanBlock[]>([])
-  const [showPlanModal, setShowPlanModal] = useState(false)
-  const [planTime, setPlanTime] = useState('09:00')
-  const [planTask, setPlanTask] = useState('')
-  const [planCat, setPlanCat] = useState('')
 
   // Load plan from localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem('mirror_plan_blocks')
-    if (saved) setPlan(JSON.parse(saved))
-  }, [])
 
   useEffect(() => {
     const interval = setInterval(() => setNow(new Date()), 1000)
@@ -139,21 +130,7 @@ export default function DashboardClient({ stats, categories, tags, recentEntries
     setJournalSaving(false)
   }
 
-  const addPlanBlock = () => {
-    if (!planTask.trim()) return
-    const newPlan = [...plan, { time: planTime, task: planTask, category: planCat }].sort((a, b) => a.time.localeCompare(b.time))
-    setPlan(newPlan)
-    localStorage.setItem('mirror_plan_blocks', JSON.stringify(newPlan))
-    setPlanTask('')
-    setShowPlanModal(false)
-    toast('Block added!', 'success')
-  }
 
-  const removePlanBlock = (idx: number) => {
-    const newPlan = plan.filter((_, i) => i !== idx)
-    setPlan(newPlan)
-    localStorage.setItem('mirror_plan_blocks', JSON.stringify(newPlan))
-  }
 
   return (
     <div className="motion-stack">
@@ -239,80 +216,11 @@ export default function DashboardClient({ stats, categories, tags, recentEntries
         </div>
       </div>
 
-      {/* ═══ TOMORROW'S ROUTINE PLANNER ═══ */}
-      <div className="glass reveal-up" style={{ '--reveal-delay': '200ms', padding: '2rem' } as React.CSSProperties}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Target size={18} color="var(--accent-secondary)" />
-            <h3 style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--text-secondary)', margin: 0 }}>Tomorrow's Routine</h3>
-          </div>
-          <button className="btn-primary" onClick={() => setShowPlanModal(true)} style={{ padding: '0.5rem 1rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <Plus size={14} /> Add Block
-          </button>
-        </div>
-
-        {plan.length === 0 ? (
-          <p className="text-secondary" style={{ textAlign: 'center', padding: '2rem 0' }}>No blocks planned yet. Click "Add Block" to schedule your day.</p>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {plan.map((block, idx) => (
-              <div key={idx} style={{
-                display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.75rem 1rem',
-                background: 'var(--surface)', border: '1px solid var(--surface-border)', borderRadius: '12px',
-                transition: 'all 0.2s', position: 'relative'
-              }}>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.9rem', fontWeight: 700, color: 'var(--accent-primary)', minWidth: 50 }}>{block.time}</span>
-                <div style={{ flex: 1 }}>
-                  <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{block.task}</span>
-                  {block.category && <span className="text-xs text-secondary" style={{ marginLeft: '0.5rem' }}>({block.category})</span>}
-                </div>
-                <button onClick={() => removePlanBlock(idx)} style={{ background: 'none', border: 'none', color: '#ff5577', cursor: 'pointer', padding: '4px' }}>
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
+      <div className="reveal-up" style={{ '--reveal-delay': '170ms' } as React.CSSProperties}>
+        <TodoList selectedDate={new Date(now.getFullYear(), now.getMonth(), now.getDate())} />
       </div>
 
-      {/* Plan Block Modal */}
-      {showPlanModal && (
-        <div className="modal-overlay" onClick={() => setShowPlanModal(false)}>
-          <div className="glass" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420, width: '100%', padding: '2rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Add Time Block</h3>
-              <button onClick={() => setShowPlanModal(false)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}><X size={20} /></button>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div>
-                <label>Time</label>
-                <select value={planTime} onChange={(e) => setPlanTime(e.target.value)}>
-                  {TIME_SLOTS.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-              </div>
-              <div>
-                <label>What will you do?</label>
-                <input type="text" value={planTask} onChange={(e) => setPlanTask(e.target.value)} placeholder="e.g., Deep work session, Gym, Study..." />
-              </div>
-              <div>
-                <label>Category</label>
-                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-                  {categories.map((c: any) => (
-                    <button key={c.id} type="button" className={planCat === c.name ? 'btn-primary' : 'btn-secondary'}
-                      style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
-                      onClick={() => setPlanCat(c.name)}>
-                      <div style={{ width: 6, height: 6, borderRadius: '50%', background: c.color }} />
-                      {c.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <button className="btn-primary w-full" onClick={addPlanBlock} style={{ padding: '0.85rem' }}>Add to Routine</button>
-            </div>
-          </div>
-        </div>
-      )}
-
+ 
       {/* ═══ JOURNAL ═══ */}
       <div className="glass reveal-up" style={{ '--reveal-delay': '260ms', padding: '2rem' } as React.CSSProperties}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>

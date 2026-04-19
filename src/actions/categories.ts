@@ -13,18 +13,18 @@ export async function getCategories() {
   })
 }
 
-export async function createCategory(name: string, color?: string, icon?: string) {
+export async function createCategory(name: string, color?: string, icon?: string, isProductive: boolean = false) {
   const userId = await getUserId()
   if (!userId) throw new Error('Unauthorized')
   const cat = await prisma.category.create({
-    data: { name, color: color || '#6366f1', icon: icon || 'folder', userId },
+    data: { name, color: color || '#6366f1', icon: icon || 'folder', isProductive, userId },
   })
   revalidatePath('/')
   revalidatePath('/settings')
   return cat
 }
 
-export async function updateCategory(id: string, data: { name?: string; color?: string; icon?: string }) {
+export async function updateCategory(id: string, data: { name?: string; color?: string; icon?: string; isProductive?: boolean }) {
   const userId = await getUserId()
   if (!userId) throw new Error('Unauthorized')
   const cat = await prisma.category.update({

@@ -39,7 +39,11 @@ export async function getDashboardStats() {
 
   const [entries, goals, categories] = await Promise.all([
     prisma.timeEntry.findMany({
-      where: { userId, startTime: { gte: weekStart } },
+      where: {
+        userId,
+        startTime: { gte: weekStart },
+        category: { is: { isProductive: true } },
+      },
       include: { category: true },
     }),
     prisma.goal.findMany({ where: { userId } }),

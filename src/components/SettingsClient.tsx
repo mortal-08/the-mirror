@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { createCategory, deleteCategory } from '@/actions/categories'
+import { createCategory, deleteCategory, updateCategory } from '@/actions/categories'
 import { upsertGoal } from '@/actions/goals'
 import { createTag, deleteTag } from '@/actions/tags'
 import { changePassword } from '@/actions/auth'
@@ -34,20 +34,46 @@ export default function SettingsClient({
   }
 
   // Categories
+  const [categories, setCategories] = useState<any[]>(initialCategories)
   const [newCatName, setNewCatName] = useState('')
   const [newCatColor, setNewCatColor] = useState('#7c3aed')
+  const [newCatIsProductive, setNewCatIsProductive] = useState(false)
+  const [updatingProductiveIds, setUpdatingProductiveIds] = useState<Set<string>>(new Set())
 
   const handleAddCat = async () => {
     if (!newCatName.trim()) return
-    await createCategory(newCatName.trim(), newCatColor)
+    const category = await createCategory(newCatName.trim(), newCatColor, undefined, newCatIsProductive)
+    setCategories((prev) => [...prev, category])
     setNewCatName('')
+    setNewCatIsProductive(false)
     toast('Category added!', 'success')
   }
 
   const handleDeleteCat = async (id: string) => {
     if (!confirm('Delete this category?')) return
     await deleteCategory(id)
+    setCategories((prev) => prev.filter((c) => c.id !== id))
     toast('Category deleted.', 'success')
+  }
+
+  const handleToggleProductive = async (id: string, isProductive: boolean) => {
+    const previous = categories
+    setUpdatingProductiveIds((prev) => new Set(prev).add(id))
+    setCategories((prev) => prev.map((c) => (c.id === id ? { ...c, isProductive } : c)))
+
+    try {
+      await updateCategory(id, { isProductive })
+      toast('Category updated!', 'success')
+    } catch {
+      setCategories(previous)
+      toast('Failed to update category.', 'error')
+    }
+
+    setUpdatingProductiveIds((prev) => {
+      const next = new Set(prev)
+      next.delete(id)
+      return next
+    })
   }
 
   // Tags
@@ -128,28 +154,58 @@ export default function SettingsClient({
           <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Categories</h3>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-          {initialCategories.map((c: any) => (
-            <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', background: 'var(--surface)', border: '1px solid var(--surface-border)', borderRadius: '10px' }}>
-              <div style={{ width: 10, height: 10, borderRadius: '50%', background: c.color }} />
-              <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{c.name}</span>
-              <button onClick={() => handleDeleteCat(c.id)} style={{ marginLeft: '4px', color: '#ff5577', background: 'none', border: 'none', cursor: 'pointer' }}>
-                <Trash2 size={14} />
-              </button>
-            </div>
-          ))}
+          {categories.map((c: any) => {
+            const isUpdatingProductive = updatingProductiveIds.has(c.id)
+
+            return (
+              <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0.75rem', background: 'var(--surface)', border: '1px solid var(--surface-border)', borderRadius: '10px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: c.color }} />
+                  <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{c.name}</span>
+                </div>
+
+                <label className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(c.isProductive)}
+                    disabled={isUpdatingProductive}
+                    onChange={(e) => handleToggleProductive(c.id, e.target.checked)}
+                    className="h-4 w-4 cursor-pointer rounded border border-[var(--surface-border)] bg-[var(--surface)] accent-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
+                  />
+                  Counts as Productive Time
+                </label>
+
+                <button onClick={() => handleDeleteCat(c.id)} style={{ marginLeft: '4px', color: '#ff5577', background: 'none', border: 'none', cursor: 'pointer' }}>
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            )
+          })}
         </div>
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <input type="text" value={newCatName} onChange={(e) => setNewCatName(e.target.value)}
-            placeholder="New category..." onKeyDown={(e) => e.key === 'Enter' && handleAddCat()} style={{ flex: 1, minWidth: '160px' }} />
-          <div style={{ display: 'flex', gap: '5px' }}>
-            {COLORS.map((c) => (
-              <button key={c} onClick={() => setNewCatColor(c)} style={{
-                width: 26, height: 26, borderRadius: '50%', background: c, border: newCatColor === c ? '2px solid var(--text-primary)' : '2px solid transparent',
-                cursor: 'pointer', transition: 'all 0.2s'
-              }} />
-            ))}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <input type="text" value={newCatName} onChange={(e) => setNewCatName(e.target.value)}
+              placeholder="New category..." onKeyDown={(e) => e.key === 'Enter' && handleAddCat()} style={{ flex: 1, minWidth: '160px' }} />
+            <div style={{ display: 'flex', gap: '5px' }}>
+              {COLORS.map((c) => (
+                <button key={c} onClick={() => setNewCatColor(c)} style={{
+                  width: 26, height: 26, borderRadius: '50%', background: c, border: newCatColor === c ? '2px solid var(--text-primary)' : '2px solid transparent',
+                  cursor: 'pointer', transition: 'all 0.2s'
+                }} />
+              ))}
+            </div>
+            <button className="btn-primary" onClick={handleAddCat} style={{ padding: '0.75rem 1rem' }}><Plus size={18} /></button>
           </div>
-          <button className="btn-primary" onClick={handleAddCat} style={{ padding: '0.75rem 1rem' }}><Plus size={18} /></button>
+
+          <label className="inline-flex items-center gap-2 rounded-lg border border-[var(--surface-border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text-secondary)]">
+            <input
+              type="checkbox"
+              checked={newCatIsProductive}
+              onChange={(e) => setNewCatIsProductive(e.target.checked)}
+              className="h-4 w-4 cursor-pointer rounded border border-[var(--surface-border)] bg-[var(--surface)] accent-emerald-500"
+            />
+            Counts as Productive Time
+          </label>
         </div>
       </div>
 

@@ -17,6 +17,7 @@ model User {
   tags         Tag[]
   goals        Goal[]
   journals     Journal[]
+  todos        Todo[]
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 }
@@ -26,6 +27,7 @@ model Category {
   name      String
   color     String      @default("#6366f1")
   icon      String      @default("folder")
+  isProductive Boolean   @default(false)
   userId    String
   user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   entries   TimeEntry[]
@@ -33,6 +35,17 @@ model Category {
   updatedAt DateTime    @updatedAt
 
   @@unique([name, userId])
+}
+
+model Todo {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task        String
+  isCompleted Boolean  @default(false)
+  targetDate  DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model Tag {
