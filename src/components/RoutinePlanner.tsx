@@ -36,7 +36,7 @@ function formatMinutes(totalMinutes: number): string {
 }
 
 function getCurrentDayMinutes(date: Date): number {
-  return (date.getHours() * 60) + date.getMinutes()
+  return (date.getHours() * 60) + date.getMinutes() + (date.getSeconds() / 60)
 }
 
 function sortBlocks(blocks: RoutineBlock[]): RoutineBlock[] {
@@ -126,7 +126,7 @@ export default function RoutinePlanner() {
   }, [])
 
   const loadBlocksForDate = useCallback(async (date: Date): Promise<RoutineBlock[]> => {
-    const result = await getRoutineBlocks(date)
+    const result = await getRoutineBlocks(dateKey(date))
     if ('error' in result) {
       toast(result.error, 'error')
       return []
@@ -162,7 +162,7 @@ export default function RoutinePlanner() {
 
     setIsCreating(true)
     const targetDate = normalizeToLocalDay(selectedDate)
-    const result = await createRoutineBlock(trimmedTask, targetDate, startTime, endTime)
+    const result = await createRoutineBlock(trimmedTask, dateKey(targetDate), startTime, endTime)
 
     if ('error' in result) {
       toast(result.error, 'error')
@@ -247,7 +247,7 @@ export default function RoutinePlanner() {
     setSelectedBlocks(reordered)
     setIsReordering(true)
 
-    const result = await reorderRoutineBlocks(selectedDate, reordered.map((block) => block.id))
+    const result = await reorderRoutineBlocks(dateKey(selectedDate), reordered.map((block) => block.id))
     if ('error' in result) {
       setSelectedBlocks(previousSelected)
       toast(result.error, 'error')

@@ -6,15 +6,28 @@ import { revalidatePath } from 'next/cache'
 
 type ActionResult<T> = { success: true; data: T } | { error: string }
 
-function getDayBounds(date: Date): { startOfDay: Date; endOfDay: Date } | null {
-  const parsed = new Date(date)
+function normalizeDateKey(input: Date | string): string | null {
+  if (typeof input === 'string') {
+    const raw = input.trim()
+    const match = /^(\d{4}-\d{2}-\d{2})/.exec(raw)
+    if (match) return match[1]
+
+    const parsed = new Date(raw)
+    if (Number.isNaN(parsed.getTime())) return null
+    return parsed.toISOString().slice(0, 10)
+  }
+
+  const parsed = new Date(input)
   if (Number.isNaN(parsed.getTime())) return null
+  return parsed.toISOString().slice(0, 10)
+}
 
-  const startOfDay = new Date(parsed)
-  startOfDay.setHours(0, 0, 0, 0)
+function getDayBounds(date: Date | string): { startOfDay: Date; endOfDay: Date } | null {
+  const dateKey = normalizeDateKey(date)
+  if (!dateKey) return null
 
-  const endOfDay = new Date(parsed)
-  endOfDay.setHours(23, 59, 59, 999)
+  const startOfDay = new Date(`${dateKey}T00:00:00.000Z`)
+  const endOfDay = new Date(`${dateKey}T23:59:59.999Z`)
 
   return { startOfDay, endOfDay }
 }
@@ -28,7 +41,7 @@ function parseTimeToMinutes(value: string): number | null {
   return (hours * 60) + minutes
 }
 
-export async function getRoutineBlocks(date: Date): Promise<ActionResult<Awaited<ReturnType<typeof prisma.routineBlock.findMany>>>> {
+export async function getRoutineBlocks(date: Date | string): Promise<ActionResult<Awaited<ReturnType<typeof prisma.routineBlock.findMany>>>> {
   try {
     const userId = await getUserId()
     if (!userId) return { error: 'Not authenticated.' }
@@ -56,7 +69,7 @@ export async function getRoutineBlocks(date: Date): Promise<ActionResult<Awaited
 
 export async function createRoutineBlock(
   task: string,
-  planDate: Date,
+  planDate: Date | string,
   startTime: string,
   endTime: string
 ): Promise<ActionResult<Awaited<ReturnType<typeof prisma.routineBlock.create>>>> {
@@ -216,7 +229,7 @@ export async function updateRoutineBlock(
 }
 
 export async function reorderRoutineBlocks(
-  planDate: Date,
+  planDate: Date | string,
   orderedIds: string[]
 ): Promise<ActionResult<Awaited<ReturnType<typeof prisma.routineBlock.findMany>>>> {
   try {

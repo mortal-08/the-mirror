@@ -123,19 +123,35 @@ export default function DashboardClient({ stats, categories, recentEntries, toda
   const formatStartsIn = (totalMinutes: number): string => {
     if (totalMinutes <= 0) return 'Starts now'
 
-    const hours = Math.floor(totalMinutes / 60)
-    const minutes = totalMinutes % 60
+    if (totalMinutes < 1) return 'Starts in <1m'
+
+    const wholeMinutes = Math.ceil(totalMinutes)
+    const hours = Math.floor(wholeMinutes / 60)
+    const minutes = wholeMinutes % 60
 
     if (hours === 0) return `Starts in ${minutes}m`
     if (minutes === 0) return `Starts in ${hours}h`
     return `Starts in ${hours}h ${minutes}m`
   }
 
-  const nowMinutes = (now.getHours() * 60) + now.getMinutes()
+  const extractBlockDateKey = (planDate: unknown): string => {
+    if (typeof planDate === 'string') return planDate.slice(0, 10)
+    if (planDate instanceof Date) return planDate.toISOString().slice(0, 10)
+    return ''
+  }
+
+  const localTodayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+
+  const currentDayBlocks = useMemo(
+    () => (todayBlocks || []).filter((block) => extractBlockDateKey(block.planDate) === localTodayKey),
+    [todayBlocks, localTodayKey]
+  )
+
+  const nowMinutes = (now.getHours() * 60) + now.getMinutes() + (now.getSeconds() / 60)
 
   const sortedTodayBlocks = useMemo(
-    () => [...(todayBlocks || [])].sort((a, b) => a.startMinutes - b.startMinutes),
-    [todayBlocks]
+    () => [...currentDayBlocks].sort((a, b) => a.startMinutes - b.startMinutes),
+    [currentDayBlocks]
   )
 
   const activeBlock = useMemo(

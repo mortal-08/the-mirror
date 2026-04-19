@@ -9,16 +9,25 @@ export default async function TimerPage() {
   const userId = await getUserId()
   if (!userId) redirect('/login')
 
+  const toDateKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+
   const now = new Date()
   const todayLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const previousLocal = new Date(todayLocal)
+  previousLocal.setDate(previousLocal.getDate() - 1)
+  const nextLocal = new Date(todayLocal)
+  nextLocal.setDate(nextLocal.getDate() + 1)
 
-  const [categories, routineResult, entries] = await Promise.all([
+  const [categories, prevRoutineResult, todayRoutineResult, nextRoutineResult, entries] = await Promise.all([
     getCategories(),
-    getRoutineBlocks(todayLocal),
+    getRoutineBlocks(toDateKey(previousLocal)),
+    getRoutineBlocks(toDateKey(todayLocal)),
+    getRoutineBlocks(toDateKey(nextLocal)),
     getTimeEntries(200),
   ])
 
-  const todayBlocks = 'error' in routineResult ? [] : routineResult.data
+  const routineCandidates = [prevRoutineResult, todayRoutineResult, nextRoutineResult]
+  const todayBlocks = routineCandidates.flatMap((result) => ('error' in result ? [] : result.data))
 
   return (
     <div className="motion-stack">
