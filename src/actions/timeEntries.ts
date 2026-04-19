@@ -43,14 +43,14 @@ async function validateEntryRelations(userId: string, categoryId?: string, tagId
   return uniqueTagIds
 }
 
-export async function getTimeEntries() {
+export async function getTimeEntries(limit: number = 100) {
   const userId = await getUserId()
   if (!userId) return []
   return await prisma.timeEntry.findMany({
     where: { userId },
     include: { category: true, tags: true },
     orderBy: { startTime: 'desc' },
-    take: 100,
+    take: limit,
   })
 }
 
