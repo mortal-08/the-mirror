@@ -32,6 +32,7 @@ export default function DateTimePicker({ isOpen, onClose, onSelect, initialDate,
   const minutesListRef = useRef<HTMLDivElement>(null)
   const clockRef = useRef<HTMLDivElement>(null)
   const isDragging = useRef(false)
+  const prevAngle = useRef<number | null>(null)
 
   useEffect(() => {
     setMounted(true)
@@ -104,6 +105,19 @@ export default function DateTimePicker({ isOpen, onClose, onSelect, initialDate,
     const newM = Math.round((angle / 360) * 60) % 60
     
     const nextDate = new Date(activeDate)
+
+    if (prevAngle.current !== null) {
+      const diff = angle - prevAngle.current
+      if (diff < -180) {
+        // Crossed 0 clockwise (e.g., 350 -> 10)
+        nextDate.setHours(nextDate.getHours() + 1)
+      } else if (diff > 180) {
+        // Crossed 0 counter-clockwise (e.g., 10 -> 350)
+        nextDate.setHours(nextDate.getHours() - 1)
+      }
+    }
+    prevAngle.current = angle
+
     nextDate.setMinutes(newM)
     
     if (timeMode === 'range' && rangeTarget === 'end') setSelectedEndDate(nextDate)
@@ -112,6 +126,7 @@ export default function DateTimePicker({ isOpen, onClose, onSelect, initialDate,
 
   const handlePointerDown = (e: React.PointerEvent) => {
     isDragging.current = true
+    prevAngle.current = null
     updateTimeFromPointer(e)
     ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
   }
@@ -120,6 +135,7 @@ export default function DateTimePicker({ isOpen, onClose, onSelect, initialDate,
   }
   const handlePointerUp = (e: React.PointerEvent) => {
     isDragging.current = false
+    prevAngle.current = null
     ;(e.target as HTMLElement).releasePointerCapture(e.pointerId)
   }
 

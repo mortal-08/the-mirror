@@ -10,15 +10,14 @@ export default async function AnalyticsPage() {
   const userId = await getUserId()
   if (!userId) redirect('/login')
 
-  const [data7, data30, categories] = await Promise.all([
-    getAnalyticsData(7),
-    getAnalyticsData(30),
+  const [data, categories] = await Promise.all([
+    getAnalyticsData(365),
     getCategories(),
   ])
 
   return (
     <Suspense fallback={<div style={{ padding: '2rem', textAlign: 'center' }}>Loading analytics...</div>}>
-      <AnalyticsClient data7={data7} data30={data30} categories={categories} />
+      <AnalyticsClient data={data} categories={categories} />
     </Suspense>
   )
 }

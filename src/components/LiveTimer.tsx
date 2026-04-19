@@ -38,7 +38,7 @@ const Btn = ({
   </button>
 )
 
-export default function LiveTimer({ categories, todayBlocks = [] }: { categories: any[], todayBlocks?: any[] }) {
+export default function LiveTimer({ categories, todayBlocks = [], recentEntries = [] }: { categories: any[], todayBlocks?: any[], recentEntries?: any[] }) {
   const { toast } = useToast()
   const [now, setNow] = useState(new Date())
   const [running, setRunning] = useState(false)
@@ -543,6 +543,46 @@ export default function LiveTimer({ categories, todayBlocks = [] }: { categories
           )}
 
           {renderClock(false)}
+        </div>
+      )}
+
+      {/* Today's Log */}
+      {!fullscreen && (
+        <div className="glass reveal-up" style={{ '--reveal-delay': '200ms', padding: '1.25rem', marginTop: '1.25rem' } as React.CSSProperties}>
+          <h3 style={{ margin: 0, marginBottom: '1rem', fontSize: '0.85rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <Clock size={16} /> Today's Log
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '300px', overflowY: 'auto' }} className="no-scrollbar">
+            {recentEntries.filter((e: any) => new Date(e.startTime).toDateString() === new Date().toDateString()).length === 0 ? (
+               <p className="text-secondary" style={{ fontSize: '0.8rem', textAlign: 'center', margin: '1rem 0' }}>No entries logged today.</p>
+            ) : (
+               recentEntries.filter((e: any) => new Date(e.startTime).toDateString() === new Date().toDateString()).map((entry: any, i: number) => {
+                 const timeStr = new Date(entry.startTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+                 const desc = entry.description || 'Log'
+                 const durStr = entry.durationSeconds ? \`\${Math.floor(entry.durationSeconds / 60)}m \${entry.durationSeconds % 60}s\` : '—'
+                 const catColor = entry.category?.color || 'var(--text-secondary)'
+                 const catName = entry.category?.name || 'Uncategorized'
+                 
+                 return (
+                   <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', padding: '0.75rem', background: 'var(--surface)', borderRadius: '10px', border: '1px solid var(--surface-border)' }}>
+                      <div style={{ flexShrink: 0, marginTop: '2px', width: '55px' }}>
+                         <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block' }}>{timeStr}</span>
+                         <span style={{ fontSize: '0.65rem', color: catColor, display: 'flex', alignItems: 'center', gap: '3px', marginTop: '4px', fontWeight: 600 }}>
+                           <div style={{ width: 4, height: 4, borderRadius: '50%', background: catColor }} /> 
+                           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '40px' }}>{catName}</span>
+                         </span>
+                      </div>
+                      <div style={{ flex: 1, borderLeft: '1px solid var(--surface-border)', paddingLeft: '0.75rem' }}>
+                        <span style={{ fontSize: '0.85rem', display: 'block', color: 'var(--text-primary)', lineHeight: 1.4 }}>{desc}</span>
+                      </div>
+                      <span style={{ fontSize: '0.8rem', fontFamily: 'var(--font-mono)', color: 'var(--accent-primary)', fontWeight: 700, flexShrink: 0 }}>
+                        +{durStr}
+                      </span>
+                   </div>
+                 )
+               })
+            )}
+          </div>
         </div>
       )}
     </>
