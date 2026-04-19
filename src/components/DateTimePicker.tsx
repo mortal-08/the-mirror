@@ -147,11 +147,6 @@ export default function DateTimePicker({ isOpen, onClose, onSelect, initialDate,
     }
   }
 
-  // Analog Clock Math
-  const activeDate = timeMode === 'range' && rangeTarget === 'end' ? (selectedEndDate || selectedDate) : selectedDate
-  const hr = activeDate.getHours()
-  const mn = activeDate.getMinutes()
-  
   const hourDeg = (hr % 12) * 30 + (mn / 60) * 30
   const minDeg = mn * 6
 

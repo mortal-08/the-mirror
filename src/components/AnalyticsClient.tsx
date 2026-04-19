@@ -39,7 +39,9 @@ export default function AnalyticsClient({ data7, data30, categories }: {
   }
 
   const avgSeconds = data.totalProductiveSeconds / data.dailyData.length || 0
-  const bestDay = data.dailyData.reduce((best, d) => (d as any).productiveSeconds > (best as any).productiveSeconds ? d : best, data.dailyData[0])
+  const bestDay = data.dailyData.length > 0 
+    ? data.dailyData.reduce((best, d) => (d as any).productiveSeconds > (best as any).productiveSeconds ? d : best, data.dailyData[0])
+    : null
   const activeDays = data.dailyData.filter(d => (d as any).productiveSeconds > 0).length
 
   const formatDate = (dateStr: string) => {
