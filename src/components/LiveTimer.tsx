@@ -368,7 +368,7 @@ export default function LiveTimer({ categories, todayBlocks = [], recentEntries 
 
   // ── Save Modal (also portal) ──
   const saveModal = showModal && portalReady ? createPortal(
-    <div style={{ position: 'fixed', inset: 0, zIdex: 999999, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
+    <div style={{ position: 'fixed', inset: 0, zIndex: 999999, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
       onClick={() => setShowModal(false)}>
       <div onClick={(e) => e.stopPropagation()} style={{
         width: '100%', maxWidth: '380px', padding: '1.5rem',
