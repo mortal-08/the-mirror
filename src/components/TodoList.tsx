@@ -173,7 +173,7 @@ export default function TodoList({
             type="text"
             value={newTask}
             onChange={(e) => setNewTask(e.target.value)}
-            placeholder={\`Add a task for \${selectedDateLabel}...\`}
+            placeholder={`Add a task for ${selectedDateLabel}...`}
             disabled={isCreating}
             style={{
                width: '100%',
@@ -270,7 +270,7 @@ export default function TodoList({
                            disabled={isToggling || isDeleting}
                            style={{
                               background: todo.isCompleted ? 'var(--accent-primary)' : 'transparent',
-                              border: \`2px solid \${todo.isCompleted ? 'var(--accent-primary)' : 'var(--text-tertiary)'}\`,
+                              border: `2px solid ${todo.isCompleted ? 'var(--accent-primary)' : 'var(--text-tertiary)'}`,
                               borderRadius: '6px',
                               width: '18px', height: '18px',
                               display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -311,10 +311,10 @@ export default function TodoList({
          )}
       </div>
 
-      <style dangerouslySetInnerHTML={{__html: \`
+      <style dangerouslySetInnerHTML={{__html: `
          .hover-text-primary:hover { color: var(--accent-primary) !important; }
          .hover-text-red:hover { color: #ff5577 !important; opacity: 1 !important; }
-      \`}} />
+      `}} />
     </section>
   )
 }
