@@ -6,7 +6,7 @@ import { BarChart3, PieChart, TrendingUp, Calendar, Clock, ChevronDown, X, Tag }
 import { createPortal } from 'react-dom'
 
 type EntryData = { description: string; seconds: number; category: string; color: string; time: string }
-type DayData = { date: string; totalSeconds: number; categories: { name: string; color: string; seconds: number }[]; entries: EntryData[] }
+type DayData = { date: string; totalSeconds: number; productiveSeconds: number; categories: { name: string; color: string; seconds: number }[]; entries: EntryData[] }
 type CatTotal = { name: string; color: string; seconds: number }
 
 export default function AnalyticsClient({ data, categories }: {
@@ -44,7 +44,7 @@ export default function AnalyticsClient({ data, categories }: {
   // Best Day - Global All Time
   const bestDay = useMemo(() => {
     return data.dailyData.length > 0 
-      ? data.dailyData.reduce((best, d) => (d as any).productiveSeconds > (best as any).productiveSeconds ? d : best, data.dailyData[0])
+      ? data.dailyData.reduce((best, d) => d.productiveSeconds > best.productiveSeconds ? d : best, data.dailyData[0])
       : null
   }, [data])
 
@@ -52,8 +52,8 @@ export default function AnalyticsClient({ data, categories }: {
   const topData = useMemo(() => {
     const sliceCount = rangeTop === 'all' ? data.dailyData.length : parseInt(rangeTop, 10)
     const slice = data.dailyData.slice(-sliceCount)
-    const totalProd = slice.reduce((sum, d) => sum + ((d as any).productiveSeconds || 0), 0)
-    const activeDays = slice.filter(d => (d as any).productiveSeconds > 0).length
+    const totalProd = slice.reduce((sum, d) => sum + (d.productiveSeconds || 0), 0)
+    const activeDays = slice.filter(d => d.productiveSeconds > 0).length
     const avg = totalProd / (activeDays || 1)
     return { totalProd, avg, activeDays }
   }, [data, rangeTop])
@@ -129,7 +129,7 @@ export default function AnalyticsClient({ data, categories }: {
                 <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem', display: 'block' }}>Category Breakdown</label>
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                   {dayModalData.categories.map((cat, i) => (
-                    <span key={i} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', padding: '0.3rem 0.6rem', background: \`\${cat.color}18\`, border: \`1px solid \${cat.color}40\`, borderRadius: '6px', color: cat.color, fontWeight: 600 }}>
+                    <span key={i} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', padding: '0.3rem 0.6rem', background: `${cat.color}18`, border: `1px solid ${cat.color}40`, borderRadius: '6px', color: cat.color, fontWeight: 600 }}>
                       <span style={{ width: 6, height: 6, borderRadius: '50%', background: cat.color }} />
                       {cat.name}: {fmtDuration(cat.seconds)}
                     </span>
@@ -193,7 +193,7 @@ export default function AnalyticsClient({ data, categories }: {
           </div>
           <div className="stat-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Clock size={14} /> Productive Total</div>
           <div className="stat-value" style={{ marginTop: '0.75rem' }}>{fmtHours(topData.totalProd)}h</div>
-          <div className="text-xs text-secondary">in {rangeTop === 'all' ? 'All Time' : \`\${rangeTop} days\`}</div>
+          <div className="text-xs text-secondary">in {rangeTop === 'all' ? 'All Time' : `${rangeTop} days`}</div>
         </div>
         <div className="stat-card glass" style={{ position: 'relative' }}>
           <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem' }}>
@@ -208,8 +208,8 @@ export default function AnalyticsClient({ data, categories }: {
              <span style={{ fontSize: '0.65rem', background: 'var(--surface-active)', padding: '0.2rem 0.5rem', borderRadius: '6px', color: 'var(--text-secondary)', border: '1px solid var(--surface-border)' }}>All Time</span>
           </div>
           <div className="stat-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Calendar size={14} /> Best Prod. Day</div>
-          <div className="stat-value" style={{ marginTop: '0.75rem' }}>{bestDay ? fmtHours((bestDay as any).productiveSeconds) : '0'}h</div>
-          <div className="text-xs text-secondary">{bestDay && (bestDay as any).productiveSeconds > 0 ? formatDate(bestDay.date) : '-'}</div>
+          <div className="stat-value" style={{ marginTop: '0.75rem' }}>{bestDay ? fmtHours(bestDay.productiveSeconds) : '0'}h</div>
+          <div className="text-xs text-secondary">{bestDay && bestDay.productiveSeconds > 0 ? formatDate(bestDay.date) : '-'}</div>
         </div>
       </div>
 
@@ -223,16 +223,16 @@ export default function AnalyticsClient({ data, categories }: {
         </div>
         
         <div className="no-scrollbar" style={{ overflowX: 'auto', paddingBottom: '0.5rem', WebkitOverflowScrolling: 'touch' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', height: 240, minWidth: '100%', width: 'max-content', padding: '0 0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', height: 260, minWidth: '100%', width: 'max-content', padding: '0 0.5rem' }}>
             {dailyGraphData.map((day) => {
               const isToday = day.date === new Date().toISOString().split('T')[0]
               return (
-                <div key={day.date} onClick={() => setDayModalData(day)} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', width: '38px', minWidth: '38px', position: 'relative', cursor: 'pointer' }} className="bar-column">
-                  <span style={{ fontSize: '0.55rem', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', opacity: 0, transition: 'opacity 0.2s', position: 'absolute', top: '-20px' }} className="bar-label">
+                <div key={day.date} onClick={() => setDayModalData(day)} style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', width: '38px', minWidth: '38px', position: 'relative', cursor: 'pointer' }} className="bar-column">
+                  <span style={{ fontSize: '0.55rem', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', opacity: 0, transition: 'opacity 0.2s', position: 'absolute', top: '-18px' }} className="bar-label">
                     {day.totalSeconds > 0 ? fmtHours(day.totalSeconds) : ''}
                   </span>
                   <div style={{
-                    width: '100%', minHeight: 4, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
+                    width: '100%', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
                     borderRadius: '4px 4px 2px 2px', overflow: 'hidden',
                     background: day.totalSeconds === 0 ? 'var(--surface)' : 'transparent',
                     opacity: day.totalSeconds === 0 ? 0.3 : 1,
@@ -242,14 +242,14 @@ export default function AnalyticsClient({ data, categories }: {
                     {day.categories.map((cat, idx) => (
                       <div key={idx} style={{
                         width: '100%',
-                        height: \`\${(cat.seconds / maxDaySeconds) * 100}%\`,
+                        height: `${(cat.seconds / maxDaySeconds) * 100}%`,
                         background: cat.color,
                         minHeight: cat.seconds > 0 ? '3px' : '0',
                         transition: 'height 0.8s ease'
-                      }} title={\`\${cat.name}: \${Math.floor(cat.seconds/3600)}h \${Math.floor((cat.seconds%3600)/60)}m\`} />
+                      }} title={`${cat.name}: ${Math.floor(cat.seconds/3600)}h ${Math.floor((cat.seconds%3600)/60)}m`} />
                     ))}
                   </div>
-                  <span style={{ fontSize: '0.55rem', color: isToday ? 'var(--text-primary)' : 'var(--text-tertiary)', fontWeight: isToday ? 700 : 400, whiteSpace: 'nowrap', marginTop: 'auto' }}>
+                  <span style={{ fontSize: '0.55rem', padding: '0 2px', color: isToday ? 'var(--text-primary)' : 'var(--text-tertiary)', fontWeight: isToday ? 700 : 400, whiteSpace: 'nowrap', marginTop: '4px' }}>
                     {formatDate(day.date).split(' ')[1]} {formatDate(day.date).split(' ')[0]}
                   </span>
                 </div>
@@ -257,10 +257,10 @@ export default function AnalyticsClient({ data, categories }: {
             })}
           </div>
         </div>
-        <style dangerouslySetInnerHTML={{__html: \`
+        <style dangerouslySetInnerHTML={{__html: `
           .bar-column:hover .bar-label { opacity: 1 !important; transform: translateY(-2px); }
           .bar-column:hover .bar-bars { opacity: 0.8; transform: scaleY(1.02); transform-origin: bottom; }
-        \`}} />
+        `}} />
       </div>
 
       {/* Category Breakdown */}
@@ -283,7 +283,7 @@ export default function AnalyticsClient({ data, categories }: {
                     let offset = 0
                     return dynamicCategoryTotals.map((cat, i) => {
                       const pct = totalCatSeconds > 0 ? (cat.seconds / totalCatSeconds) * 100 : 0
-                      const dash = \`\${pct} \${100 - pct}\`
+                      const dash = `${pct} ${100 - pct}`
                       const el = <circle key={i} cx="18" cy="18" r="15.9" fill="none" stroke={cat.color} strokeWidth="3.2"
                         strokeDasharray={dash} strokeDashoffset={-offset} strokeLinecap="round" style={{ transition: 'stroke-dasharray 0.8s ease-out, stroke-dashoffset 0.8s ease-out' }} />
                       offset += pct
@@ -313,7 +313,7 @@ export default function AnalyticsClient({ data, categories }: {
                   <div style={{ width: 8, height: 8, borderRadius: '50%', background: cat.color, flexShrink: 0 }} />
                   <span style={{ fontSize: '0.8rem', fontWeight: 600, minWidth: 70 }}>{cat.name}</span>
                   <div style={{ flex: 1, height: 8, background: 'var(--surface-hover)', borderRadius: '4px', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: \`\${totalCatSeconds > 0 ? (cat.seconds / totalCatSeconds) * 100 : 0}%\`, background: cat.color, borderRadius: '4px', transition: 'width 0.8s ease' }} />
+                    <div style={{ height: '100%', width: `${totalCatSeconds > 0 ? (cat.seconds / totalCatSeconds) * 100 : 0}%`, background: cat.color, borderRadius: '4px', transition: 'width 0.8s ease' }} />
                   </div>
                   <span style={{ fontSize: '0.7rem', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', minWidth: 45, textAlign: 'right' }}>{fmtDuration(cat.seconds)}</span>
                 </div>
@@ -338,7 +338,7 @@ export default function AnalyticsClient({ data, categories }: {
                 <button onClick={() => setDayModalData(day)} style={{
                   width: '100%', display: 'flex', alignItems: 'center', gap: '0.75rem',
                   padding: '0.65rem 0.75rem', background: isToday ? 'var(--surface-active)' : 'var(--surface)',
-                  border: \`1px solid \${isToday ? 'var(--accent-primary)' : 'var(--surface-border)'}\`,
+                  border: `1px solid ${isToday ? 'var(--accent-primary)' : 'var(--surface-border)'}`,
                   borderRadius: '10px', cursor: 'pointer',
                   transition: 'background 0.2s, border 0.2s', color: 'var(--text-primary)', textAlign: 'left',
                 }}>

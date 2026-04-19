@@ -4,12 +4,12 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { createTimeEntry } from '@/actions/timeEntries'
 import { useToast } from '@/components/ToastProvider'
-import { Play, Square, Pause, Coffee, Zap, Maximize, Minimize, Settings2, X, RotateCcw, Timer, Tag, CalendarDays } from 'lucide-react'
+import { Play, Square, Pause, Coffee, Zap, Maximize, Minimize, Settings2, X, RotateCcw, Timer, Tag, CalendarDays, Clock } from 'lucide-react'
 
 type Mode = 'focus' | 'pomodoro'
 type PomodoroPhase = 'work' | 'shortBreak' | 'longBreak'
 
-// ── Button builder (at module scope for stable reference — fixes Chrome Mobile touch bug) ──
+// ── Button builder (at module scope for stable reference ── fixes Chrome Mobile touch bug) ──
 const Btn = ({
   onClick,
   children,
@@ -171,7 +171,7 @@ export default function LiveTimer({ categories, todayBlocks = [], recentEntries 
         new Notification('Mirror', { body: 'Timer done! 🎯' })
       }
     } catch (err) {
-      console.warn('Notifications are not supported on this browser without a Service Worker.')
+      console.warn('Notifications are not supported on this browser.')
     }
   }, [])
 
@@ -216,7 +216,7 @@ export default function LiveTimer({ categories, todayBlocks = [], recentEntries 
       }
       setElapsed(0); pausedElapsedRef.current = 0; startTimeRef.current = Date.now()
     }
-  }, [elapsed, running, paused, mode, pomPhase])
+  }, [elapsed, running, paused, mode, pomPhase, pomCount, sessionsBeforeLong, selectedCat, selectedTagIds, pomTimes, playSound, toast])
 
   const savePomSettings = () => {
     localStorage.setItem('mirror_pom_settings', JSON.stringify({ work: workMin, shortBreak: shortBreakMin, longBreak: longBreakMin, sessions: sessionsBeforeLong }))
@@ -350,7 +350,7 @@ export default function LiveTimer({ categories, todayBlocks = [], recentEntries 
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       height: '100dvh', width: '100vw',
     }}>
-      <Btn onClick={() => setFullscreen(false)} style={{
+    <Btn onClick={() => setFullscreen(false)} style={{
         position: 'absolute', top: '1rem', right: '1rem',
         background: 'var(--surface)', border: '1px solid var(--surface-border)',
         color: 'var(--text-secondary)', width: 36, height: 36, borderRadius: '50%',
@@ -368,7 +368,7 @@ export default function LiveTimer({ categories, todayBlocks = [], recentEntries 
 
   // ── Save Modal (also portal) ──
   const saveModal = showModal && portalReady ? createPortal(
-    <div style={{ position: 'fixed', inset: 0, zIndex: 999999, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
+    <div style={{ position: 'fixed', inset: 0, zIdex: 999999, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
       onClick={() => setShowModal(false)}>
       <div onClick={(e) => e.stopPropagation()} style={{
         width: '100%', maxWidth: '380px', padding: '1.5rem',
@@ -559,7 +559,7 @@ export default function LiveTimer({ categories, todayBlocks = [], recentEntries 
                recentEntries.filter((e: any) => new Date(e.startTime).toDateString() === new Date().toDateString()).map((entry: any, i: number) => {
                  const timeStr = new Date(entry.startTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
                  const desc = entry.description || 'Log'
-                 const durStr = entry.durationSeconds ? \`\${Math.floor(entry.durationSeconds / 60)}m \${entry.durationSeconds % 60}s\` : '—'
+                 const durStr = entry.durationSeconds ? `${Math.floor(entry.durationSeconds / 60)}m ${entry.durationSeconds % 60}s` : '—'
                  const catColor = entry.category?.color || 'var(--text-secondary)'
                  const catName = entry.category?.name || 'Uncategorized'
                  

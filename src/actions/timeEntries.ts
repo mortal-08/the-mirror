@@ -227,7 +227,7 @@ export async function getAnalyticsData(days: number = 7) {
 
   entries.forEach((entry) => {
     const dur = entry.durationSeconds || 0
-    const isProductive = entry.category?.isProductive === true
+    const isProductive = !!entry.categoryId && entry.category?.isProductive === true
     totalSeconds += dur
     if (isProductive) totalProductiveSeconds += dur
     const dayKey = new Date(entry.startTime).toISOString().split('T')[0]
