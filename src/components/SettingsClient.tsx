@@ -35,17 +35,21 @@ export default function SettingsClient({
 
   // Categories
   const [categories, setCategories] = useState<any[]>(initialCategories)
+  const [tags, setTags] = useState<any[]>(initialTags)
   const [newCatName, setNewCatName] = useState('')
   const [newCatColor, setNewCatColor] = useState('#7c3aed')
   const [newCatIsProductive, setNewCatIsProductive] = useState(false)
+  const [newCatTagIds, setNewCatTagIds] = useState<string[]>([])
   const [updatingProductiveIds, setUpdatingProductiveIds] = useState<Set<string>>(new Set())
+  const [updatingCategoryTagIds, setUpdatingCategoryTagIds] = useState<Set<string>>(new Set())
 
   const handleAddCat = async () => {
     if (!newCatName.trim()) return
-    const category = await createCategory(newCatName.trim(), newCatColor, undefined, newCatIsProductive)
+    const category = await createCategory(newCatName.trim(), newCatColor, undefined, newCatIsProductive, newCatTagIds)
     setCategories((prev) => [...prev, category])
     setNewCatName('')
     setNewCatIsProductive(false)
+    setNewCatTagIds([])
     toast('Category added!', 'success')
   }
 
@@ -76,19 +80,65 @@ export default function SettingsClient({
     })
   }
 
+  const toggleNewCategoryTag = (tagId: string) => {
+    setNewCatTagIds((prev) => (prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]))
+  }
+
+  const handleToggleCategoryTag = async (categoryId: string, tagId: string) => {
+    const category = categories.find((c) => c.id === categoryId)
+    if (!category) return
+
+    const currentTagIds: string[] = (category.tags || []).map((tag: any) => tag.id)
+    const nextTagIds = currentTagIds.includes(tagId)
+      ? currentTagIds.filter((id) => id !== tagId)
+      : [...currentTagIds, tagId]
+
+    const previous = categories
+    setUpdatingCategoryTagIds((prev) => new Set(prev).add(categoryId))
+    setCategories((prev) => prev.map((c) => {
+      if (c.id !== categoryId) return c
+      return {
+        ...c,
+        tags: tags.filter((tag) => nextTagIds.includes(tag.id)),
+      }
+    }))
+
+    try {
+      const updated = await updateCategory(categoryId, { tagIds: nextTagIds })
+      setCategories((prev) => prev.map((c) => (c.id === categoryId ? updated : c)))
+      toast('Category tags updated!', 'success')
+    } catch {
+      setCategories(previous)
+      toast('Failed to update category tags.', 'error')
+    }
+
+    setUpdatingCategoryTagIds((prev) => {
+      const next = new Set(prev)
+      next.delete(categoryId)
+      return next
+    })
+  }
+
   // Tags
   const [newTagName, setNewTagName] = useState('')
   const [newTagColor, setNewTagColor] = useState('#2563eb')
 
   const handleAddTag = async () => {
     if (!newTagName.trim()) return
-    await createTag(newTagName.trim(), newTagColor)
+    const createdTag = await createTag(newTagName.trim(), newTagColor)
+    setTags((prev) => [...prev, createdTag])
     setNewTagName('')
     toast('Tag added!', 'success')
   }
 
   const handleDeleteTag = async (id: string) => {
     await deleteTag(id)
+    setTags((prev) => prev.filter((tag) => tag.id !== id))
+    setNewCatTagIds((prev) => prev.filter((tagId) => tagId !== id))
+    setCategories((prev) => prev.map((category) => ({
+      ...category,
+      tags: (category.tags || []).filter((tag: any) => tag.id !== id),
+    })))
     toast('Tag deleted.', 'success')
   }
 
@@ -156,12 +206,46 @@ export default function SettingsClient({
         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
           {categories.map((c: any) => {
             const isUpdatingProductive = updatingProductiveIds.has(c.id)
+            const isUpdatingTags = updatingCategoryTagIds.has(c.id)
 
             return (
               <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0.75rem', background: 'var(--surface)', border: '1px solid var(--surface-border)', borderRadius: '10px', flexWrap: 'wrap' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: c.color }} />
-                  <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{c.name}</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', minWidth: '220px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: c.color }} />
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{c.name}</span>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
+                    {tags.length === 0 ? (
+                      <span className="text-xs text-secondary">Create tags first to link them.</span>
+                    ) : (
+                      tags.map((tag: any) => {
+                        const isSelected = (c.tags || []).some((linkedTag: any) => linkedTag.id === tag.id)
+                        return (
+                          <button
+                            key={tag.id}
+                            type="button"
+                            disabled={isUpdatingTags}
+                            onClick={() => handleToggleCategoryTag(c.id, tag.id)}
+                            className={isSelected ? 'btn-primary' : 'btn-secondary'}
+                            style={{
+                              padding: '0.25rem 0.55rem',
+                              fontSize: '0.65rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              borderColor: isSelected ? tag.color : undefined,
+                              opacity: isUpdatingTags ? 0.7 : 1,
+                            }}
+                          >
+                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: tag.color }} />
+                            {tag.name}
+                          </button>
+                        )
+                      })
+                    )}
+                  </div>
                 </div>
 
                 <label className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
@@ -197,6 +281,38 @@ export default function SettingsClient({
             <button className="btn-primary" onClick={handleAddCat} style={{ padding: '0.75rem 1rem' }}><Plus size={18} /></button>
           </div>
 
+          <div className="rounded-lg border border-[var(--surface-border)] bg-[var(--surface)] p-3">
+            <div className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Linked Tags For New Category</div>
+            {tags.length === 0 ? (
+              <p className="text-sm text-secondary">No tags available yet. Create some below to link them.</p>
+            ) : (
+              <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                {tags.map((tag: any) => {
+                  const isSelected = newCatTagIds.includes(tag.id)
+                  return (
+                    <button
+                      key={tag.id}
+                      type="button"
+                      onClick={() => toggleNewCategoryTag(tag.id)}
+                      className={isSelected ? 'btn-primary' : 'btn-secondary'}
+                      style={{
+                        padding: '0.35rem 0.7rem',
+                        fontSize: '0.72rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        borderColor: isSelected ? tag.color : undefined,
+                      }}
+                    >
+                      <span style={{ width: 7, height: 7, borderRadius: '50%', background: tag.color }} />
+                      {tag.name}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
           <label className="inline-flex items-center gap-2 rounded-lg border border-[var(--surface-border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text-secondary)]">
             <input
               type="checkbox"
@@ -216,7 +332,7 @@ export default function SettingsClient({
           <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Tags</h3>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-          {initialTags.map((t: any) => (
+          {tags.map((t: any) => (
             <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.7rem', background: 'var(--surface)', border: '1px solid var(--surface-border)', borderRadius: '10px' }}>
               <div style={{ width: 8, height: 8, borderRadius: '50%', background: t.color }} />
               <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>{t.name}</span>
@@ -225,7 +341,7 @@ export default function SettingsClient({
               </button>
             </div>
           ))}
-          {initialTags.length === 0 && <span className="text-sm text-secondary">No tags yet.</span>}
+          {tags.length === 0 && <span className="text-sm text-secondary">No tags yet.</span>}
         </div>
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <input type="text" value={newTagName} onChange={(e) => setNewTagName(e.target.value)}

@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { createTimeEntry } from '@/actions/timeEntries'
 import { useToast } from '@/components/ToastProvider'
-import { Play, Square, Pause, Coffee, Zap, Maximize, Minimize, Settings2, X, RotateCcw, Timer } from 'lucide-react'
+import { Play, Square, Pause, Coffee, Zap, Maximize, Minimize, Settings2, X, RotateCcw, Timer, Tag } from 'lucide-react'
 
 type Mode = 'focus' | 'pomodoro'
 type PomodoroPhase = 'work' | 'shortBreak' | 'longBreak'
@@ -44,6 +44,7 @@ export default function LiveTimer({ categories }: { categories: any[] }) {
   const [paused, setPaused] = useState(false)
   const [elapsed, setElapsed] = useState(0)
   const [selectedCat, setSelectedCat] = useState('')
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
   const [mode, setMode] = useState<Mode>('focus')
   const [pomPhase, setPomPhase] = useState<PomodoroPhase>('work')
   const [pomCount, setPomCount] = useState(0)
@@ -52,6 +53,7 @@ export default function LiveTimer({ categories }: { categories: any[] }) {
   const [desc, setDesc] = useState('')
   const [fullscreen, setFullscreen] = useState(false)
   const [modalCat, setModalCat] = useState('')
+  const [modalTagIds, setModalTagIds] = useState<string[]>([])
   const [portalReady, setPortalReady] = useState(false)
 
   // Pomodoro settings
@@ -69,6 +71,55 @@ export default function LiveTimer({ categories }: { categories: any[] }) {
   useEffect(() => { setPortalReady(true) }, [])
 
   const pomTimes = { work: workMin * 60, shortBreak: shortBreakMin * 60, longBreak: longBreakMin * 60 }
+
+  const selectedCategory = useMemo(
+    () => categories.find((category: any) => category.id === selectedCat),
+    [categories, selectedCat]
+  )
+
+  const selectedCategoryTags = useMemo(
+    () => selectedCategory?.tags || [],
+    [selectedCategory]
+  )
+
+  const modalCategory = useMemo(
+    () => categories.find((category: any) => category.id === modalCat),
+    [categories, modalCat]
+  )
+
+  const modalCategoryTags = useMemo(
+    () => modalCategory?.tags || [],
+    [modalCategory]
+  )
+
+  const toggleSelectedTag = (tagId: string) => {
+    if (running) return
+    setSelectedTagIds((prev) => (prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]))
+  }
+
+  const toggleModalTag = (tagId: string) => {
+    setModalTagIds((prev) => (prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]))
+  }
+
+  useEffect(() => {
+    if (!selectedCat) {
+      setSelectedTagIds([])
+      return
+    }
+
+    const allowedTagIds = new Set(selectedCategoryTags.map((tag: any) => tag.id))
+    setSelectedTagIds((prev) => prev.filter((tagId) => allowedTagIds.has(tagId)))
+  }, [selectedCat, selectedCategoryTags])
+
+  useEffect(() => {
+    if (!modalCat) {
+      setModalTagIds([])
+      return
+    }
+
+    const allowedTagIds = new Set(modalCategoryTags.map((tag: any) => tag.id))
+    setModalTagIds((prev) => prev.filter((tagId) => allowedTagIds.has(tagId)))
+  }, [modalCat, modalCategoryTags])
 
   useEffect(() => {
     const s = localStorage.getItem('mirror_pom_settings')
@@ -141,6 +192,7 @@ export default function LiveTimer({ categories }: { categories: any[] }) {
           endTime: new Date(),
           durationSeconds: elapsed,
           categoryId: selectedCat || undefined,
+          tagIds: selectedTagIds.length > 0 ? selectedTagIds : undefined,
         })
         toast(`Pomodoro #${n} logged! 🍅`, 'success')
         setPomPhase(n % sessionsBeforeLong === 0 ? 'longBreak' : 'shortBreak')
@@ -174,6 +226,7 @@ export default function LiveTimer({ categories }: { categories: any[] }) {
     if (intervalRef.current) clearInterval(intervalRef.current)
     setRunning(false); setPaused(false)
     setStoppedDuration(dur); setModalCat(selectedCat)
+    setModalTagIds(selectedTagIds)
     setFullscreen(false); setElapsed(0); pausedElapsedRef.current = 0
     setShowModal(true)
   }
@@ -192,8 +245,9 @@ export default function LiveTimer({ categories }: { categories: any[] }) {
       endTime: new Date(end),
       durationSeconds: stoppedDuration,
       categoryId: modalCat || undefined,
+      tagIds: modalTagIds.length > 0 ? modalTagIds : undefined,
     })
-    toast('Saved!', 'success'); setShowModal(false); setDesc(''); setStoppedDuration(0)
+    toast('Saved!', 'success'); setShowModal(false); setDesc(''); setStoppedDuration(0); setModalTagIds([])
   }
 
   const fmt = (s: number) => {
@@ -319,7 +373,7 @@ export default function LiveTimer({ categories }: { categories: any[] }) {
         <div style={{ marginBottom: '0.75rem' }}>
           <label style={{ fontSize: '0.7rem' }}>Category</label>
           <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap', marginTop: '0.25rem' }}>
-            <Btn onClick={() => setModalCat('')} className={!modalCat ? 'btn-primary' : 'btn-secondary'} style={{ padding: '0.25rem 0.5rem', fontSize: '0.65rem' }}>None</Btn>
+            <Btn onClick={() => { setModalCat(''); setModalTagIds([]) }} className={!modalCat ? 'btn-primary' : 'btn-secondary'} style={{ padding: '0.25rem 0.5rem', fontSize: '0.65rem' }}>None</Btn>
             {categories.map((c: any) => (
               <Btn key={c.id} onClick={() => setModalCat(c.id)} className={modalCat === c.id ? 'btn-primary' : 'btn-secondary'}
                 style={{ padding: '0.25rem 0.5rem', fontSize: '0.65rem', display: 'flex', alignItems: 'center', gap: '3px' }}>
@@ -327,6 +381,32 @@ export default function LiveTimer({ categories }: { categories: any[] }) {
               </Btn>
             ))}
           </div>
+        </div>
+
+        <div style={{ marginBottom: '0.75rem' }}>
+          <label style={{ fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Tag size={12} /> Tags for selected category</label>
+          {!modalCat ? (
+            <div className="text-xs text-secondary" style={{ marginTop: '0.3rem' }}>Select a category to choose tags.</div>
+          ) : modalCategoryTags.length === 0 ? (
+            <div className="text-xs text-secondary" style={{ marginTop: '0.3rem' }}>No tags linked to this category in Settings.</div>
+          ) : (
+            <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap', marginTop: '0.3rem' }}>
+              {modalCategoryTags.map((tag: any) => {
+                const isActive = modalTagIds.includes(tag.id)
+                return (
+                  <Btn
+                    key={tag.id}
+                    onClick={() => toggleModalTag(tag.id)}
+                    className={isActive ? 'btn-primary' : 'btn-secondary'}
+                    style={{ padding: '0.25rem 0.5rem', fontSize: '0.65rem', display: 'flex', alignItems: 'center', gap: '3px', borderColor: isActive ? tag.color : undefined }}
+                  >
+                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: tag.color }} />
+                    {tag.name}
+                  </Btn>
+                )
+              })}
+            </div>
+          )}
         </div>
         <div style={{ marginBottom: '1rem' }}>
           <label style={{ fontSize: '0.7rem' }}>Description</label>
@@ -404,6 +484,35 @@ export default function LiveTimer({ categories }: { categories: any[] }) {
               </Btn>
             ))}
           </div>
+
+          {selectedCat && (
+            <div style={{ marginBottom: '0.9rem', border: '1px solid var(--surface-border)', borderRadius: '10px', padding: '0.5rem', background: 'var(--surface)' }}>
+              <div style={{ fontSize: '0.6rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                <Tag size={11} /> Tags in this category
+              </div>
+
+              {selectedCategoryTags.length === 0 ? (
+                <div className="text-xs text-secondary">No tags linked to this category in Settings.</div>
+              ) : (
+                <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
+                  {selectedCategoryTags.map((tag: any) => {
+                    const isActive = selectedTagIds.includes(tag.id)
+                    return (
+                      <Btn
+                        key={tag.id}
+                        onClick={() => toggleSelectedTag(tag.id)}
+                        className={isActive ? 'btn-primary' : 'btn-secondary'}
+                        style={{ padding: '0.2rem 0.45rem', fontSize: '0.62rem', opacity: running ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: '3px', borderColor: isActive ? tag.color : undefined }}
+                      >
+                        <span style={{ width: 5, height: 5, borderRadius: '50%', background: tag.color }} />
+                        {tag.name}
+                      </Btn>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           {renderClock(false)}
         </div>

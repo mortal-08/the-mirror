@@ -4,6 +4,45 @@ import prisma from '@/lib/prisma'
 import { getUserId } from '@/lib/auth'
 import { revalidatePath } from 'next/cache'
 
+async function validateEntryRelations(userId: string, categoryId?: string, tagIds?: string[]) {
+  const uniqueTagIds = [...new Set((tagIds || []).filter(Boolean))]
+
+  if (!categoryId) {
+    if (uniqueTagIds.length > 0) {
+      throw new Error('Select a category to use tags.')
+    }
+    return uniqueTagIds
+  }
+
+  const category = await prisma.category.findFirst({
+    where: {
+      id: categoryId,
+      userId,
+    },
+    select: {
+      id: true,
+      tags: {
+        select: { id: true },
+      },
+    },
+  })
+
+  if (!category) {
+    throw new Error('Invalid category selected.')
+  }
+
+  if (uniqueTagIds.length > 0) {
+    const allowedTagIds = new Set(category.tags.map((tag) => tag.id))
+    const hasInvalidTag = uniqueTagIds.some((tagId) => !allowedTagIds.has(tagId))
+
+    if (hasInvalidTag) {
+      throw new Error('Selected tags are not linked to the chosen category.')
+    }
+  }
+
+  return uniqueTagIds
+}
+
 export async function getTimeEntries() {
   const userId = await getUserId()
   if (!userId) return []
@@ -90,12 +129,13 @@ export async function createTimeEntry(data: {
   if (!userId) throw new Error('Unauthorized')
 
   const { tagIds, ...rest } = data
+  const validatedTagIds = await validateEntryRelations(userId, rest.categoryId, tagIds)
 
   const entry = await prisma.timeEntry.create({
     data: {
       ...rest,
       userId,
-      tags: tagIds ? { connect: tagIds.map((id) => ({ id })) } : undefined,
+      tags: validatedTagIds.length > 0 ? { connect: validatedTagIds.map((id) => ({ id })) } : undefined,
     },
   })
   revalidatePath('/')
@@ -119,11 +159,28 @@ export async function updateTimeEntry(
 
   const { tagIds, ...rest } = data
 
+  const existingEntry = await prisma.timeEntry.findFirst({
+    where: { id, userId },
+    select: { id: true, categoryId: true },
+  })
+
+  if (!existingEntry) {
+    throw new Error('Entry not found.')
+  }
+
+  const effectiveCategoryId = rest.categoryId !== undefined ? rest.categoryId : existingEntry.categoryId || undefined
+  const validatedTagIds = tagIds ? await validateEntryRelations(userId, effectiveCategoryId || undefined, tagIds) : undefined
+  const clearTagsOnCategoryChange = rest.categoryId !== undefined && !tagIds
+
   const entry = await prisma.timeEntry.update({
-    where: { id },
+    where: { id: existingEntry.id },
     data: {
       ...rest,
-      tags: tagIds ? { set: tagIds.map((id) => ({ id })) } : undefined,
+      tags: clearTagsOnCategoryChange
+        ? { set: [] }
+        : validatedTagIds
+          ? { set: validatedTagIds.map((tagId) => ({ id: tagId })) }
+          : undefined,
     },
   })
   revalidatePath('/')

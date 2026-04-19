@@ -18,6 +18,7 @@ model User {
   goals        Goal[]
   journals     Journal[]
   todos        Todo[]
+  routineBlocks RoutineBlock[]
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 }
@@ -31,6 +32,7 @@ model Category {
   userId    String
   user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   entries   TimeEntry[]
+  tags      Tag[]
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
@@ -48,6 +50,20 @@ model Todo {
   updatedAt   DateTime @updatedAt
 }
 
+model RoutineBlock {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planDate     DateTime @db.Date
+  task         String
+  startMinutes Int
+  endMinutes   Int
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId, planDate])
+}
+
 model Tag {
   id        String      @id @default(uuid())
   name      String
@@ -55,6 +71,7 @@ model Tag {
   userId    String
   user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   entries   TimeEntry[]
+  categories Category[]
   createdAt DateTime    @default(now())
 
   @@unique([name, userId])

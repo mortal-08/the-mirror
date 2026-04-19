@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Activity, Database, BookOpen, Target, Clock, Timer, History, Settings, Sparkles, Shuffle, Plus, Trash2, X, BarChart3 } from 'lucide-react'
+import { Activity, Database, BookOpen, Clock, Timer, History, Settings, Shuffle, BarChart3 } from 'lucide-react'
 import { upsertJournal } from '@/actions/journal'
 import { useToast } from '@/components/ToastProvider'
 import ManualEntryForm from '@/components/ManualEntryForm'
 import EntryList from '@/components/EntryList'
 import TodoList from '@/components/TodoList'
+import RoutinePlanner from '@/components/RoutinePlanner'
 
 const QUOTES = [
   { text: "The key is in not spending time, but in investing it.", author: "Stephen R. Covey" },
@@ -68,12 +69,8 @@ const NAV_ORBS = [
   { href: '/settings', label: 'Settings', icon: Settings, color: '#10b981' },
 ]
 
-const TIME_SLOTS = ['06:00','07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00','22:00','23:00']
-
-type PlanBlock = { time: string; task: string; category: string }
-
-export default function DashboardClient({ stats, categories, tags, recentEntries, todayJournal }: {
-  stats: any; categories: any[]; tags: any[]; recentEntries: any[]; todayJournal: any
+export default function DashboardClient({ stats, categories, recentEntries, todayJournal }: {
+  stats: any; categories: any[]; recentEntries: any[]; todayJournal: any
 }) {
   const { toast } = useToast()
   const router = useRouter()
@@ -84,9 +81,6 @@ export default function DashboardClient({ stats, categories, tags, recentEntries
   const [quoteIdx, setQuoteIdx] = useState(0)
   const [hoveredOrb, setHoveredOrb] = useState<string | null>(null)
   const [particles, setParticles] = useState<{x:number;y:number;size:number;dur:number;del:number}[]>([])
-
-
-  // Load plan from localStorage
 
   useEffect(() => {
     const interval = setInterval(() => setNow(new Date()), 1000)
@@ -116,6 +110,7 @@ export default function DashboardClient({ stats, categories, tags, recentEntries
   const weeklyGoalHours = (stats.weeklyGoal / 3600).toFixed(0)
   const todayPct = Math.min((stats.todaySeconds / stats.dailyGoal) * 100, 100)
   const weekPct = Math.min((stats.weekSeconds / stats.weeklyGoal) * 100, 100)
+  const todayDashboardDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
 
   const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
   const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
@@ -217,8 +212,14 @@ export default function DashboardClient({ stats, categories, tags, recentEntries
       </div>
 
       <div className="reveal-up" style={{ '--reveal-delay': '170ms' } as React.CSSProperties}>
-        <TodoList selectedDate={new Date(now.getFullYear(), now.getMonth(), now.getDate())} />
+        <TodoList
+          selectedDate={todayDashboardDate}
+          title="Today's Accountability Todos"
+          showDateBadge={false}
+        />
       </div>
+
+      <RoutinePlanner />
 
  
       {/* ═══ JOURNAL ═══ */}
@@ -242,7 +243,7 @@ export default function DashboardClient({ stats, categories, tags, recentEntries
 
       {/* ═══ QUICK LOG ═══ */}
       <div className="reveal-up" style={{ '--reveal-delay': '320ms' } as React.CSSProperties}>
-        <ManualEntryForm categories={categories} tags={tags} />
+        <ManualEntryForm categories={categories} />
       </div>
 
       {/* ═══ RECENT ACTIVITY ═══ */}

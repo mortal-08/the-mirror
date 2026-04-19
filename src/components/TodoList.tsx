@@ -1,7 +1,7 @@
 'use client'
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
-import { Plus, Trash2, Loader2 } from 'lucide-react'
+import { CalendarDays, CheckCircle2, ListTodo, Loader2, Plus, Trash2 } from 'lucide-react'
 import { createTodo, deleteTodo, getTodos, toggleTodo } from '@/actions/todos'
 import { useToast } from '@/components/ToastProvider'
 
@@ -17,9 +17,19 @@ type TodoItem = {
 
 type TodoListProps = {
   selectedDate: Date
+  title?: string
+  compact?: boolean
+  showDateBadge?: boolean
 }
 
-export default function TodoList({ selectedDate }: TodoListProps) {
+type TodoFilter = 'ALL' | 'OPEN' | 'DONE'
+
+export default function TodoList({
+  selectedDate,
+  title = 'Daily Todo',
+  compact = false,
+  showDateBadge = true,
+}: TodoListProps) {
   const { toast } = useToast()
   const [todos, setTodos] = useState<TodoItem[]>([])
   const [newTask, setNewTask] = useState('')
@@ -27,13 +37,40 @@ export default function TodoList({ selectedDate }: TodoListProps) {
   const [isCreating, setIsCreating] = useState(false)
   const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set())
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set())
+  const [filter, setFilter] = useState<TodoFilter>('ALL')
 
   const selectedDateMs = selectedDate.getTime()
+  const selectedDateLabel = useMemo(
+    () => selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+    [selectedDateMs]
+  )
 
   const sortedTodos = useMemo(
     () => [...todos].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
     [todos]
   )
+
+  const completedCount = useMemo(
+    () => sortedTodos.filter((todo) => todo.isCompleted).length,
+    [sortedTodos]
+  )
+
+  const pendingCount = sortedTodos.length - completedCount
+
+  const completionPercent = useMemo(() => {
+    if (sortedTodos.length === 0) return 0
+    return Math.round((completedCount / sortedTodos.length) * 100)
+  }, [completedCount, sortedTodos.length])
+
+  const filteredTodos = useMemo(() => {
+    if (filter === 'OPEN') return sortedTodos.filter((todo) => !todo.isCompleted)
+    if (filter === 'DONE') return sortedTodos.filter((todo) => todo.isCompleted)
+    return sortedTodos
+  }, [filter, sortedTodos])
+
+  useEffect(() => {
+    setFilter('ALL')
+  }, [selectedDateMs])
 
   const loadTodos = useCallback(
     async (date: Date) => {
@@ -113,12 +150,35 @@ export default function TodoList({ selectedDate }: TodoListProps) {
   }
 
   return (
-    <section className="glass reveal-up p-6" style={{ '--reveal-delay': '120ms' } as React.CSSProperties}>
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <h3 className="text-sm font-bold uppercase tracking-[0.12em] text-[var(--text-secondary)]">Daily Todo</h3>
-        <span className="text-xs text-[var(--text-tertiary)]">
-          {selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-        </span>
+    <section
+      className={compact ? 'rounded-2xl border border-[var(--surface-border)] bg-[var(--surface)] p-4' : 'glass reveal-up p-6'}
+      style={compact ? undefined : ({ '--reveal-delay': '120ms' } as React.CSSProperties)}
+    >
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <ListTodo size={18} color="var(--accent-secondary)" />
+          <h3 className="text-sm font-bold uppercase tracking-[0.12em] text-[var(--text-secondary)]">{title}</h3>
+        </div>
+
+        {showDateBadge && (
+          <span className="inline-flex items-center gap-1 rounded-full border border-[var(--surface-border)] bg-[var(--surface)] px-2 py-1 text-xs text-[var(--text-tertiary)]">
+            <CalendarDays size={12} />
+            {selectedDateLabel}
+          </span>
+        )}
+      </div>
+
+      <div className="mb-4 rounded-xl border border-[var(--surface-border)] bg-[var(--surface)] p-3">
+        <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-[var(--text-secondary)]">
+          <span className="inline-flex items-center gap-1 rounded-full bg-[var(--surface-active)] px-2 py-1 font-semibold">
+            <CheckCircle2 size={12} /> {completedCount} done
+          </span>
+          <span className="rounded-full border border-[var(--surface-border)] px-2 py-1">{pendingCount} pending</span>
+          <span className="rounded-full border border-[var(--surface-border)] px-2 py-1">{completionPercent}% complete</span>
+        </div>
+        <div className="h-1.5 overflow-hidden rounded-full bg-[var(--bg-tertiary)]">
+          <div className="h-full rounded-full" style={{ width: `${completionPercent}%`, background: 'var(--accent-gradient)' }} />
+        </div>
       </div>
 
       <form onSubmit={handleCreateTodo} className="mb-4 flex items-center gap-2">
@@ -126,7 +186,7 @@ export default function TodoList({ selectedDate }: TodoListProps) {
           type="text"
           value={newTask}
           onChange={(e) => setNewTask(e.target.value)}
-          placeholder="Add a task for this day..."
+          placeholder={`Add a task for ${selectedDateLabel}...`}
           disabled={isCreating}
           className="w-full rounded-xl border border-[var(--surface-border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--surface-border-hover)] disabled:cursor-not-allowed disabled:opacity-60"
         />
@@ -140,6 +200,23 @@ export default function TodoList({ selectedDate }: TodoListProps) {
         </button>
       </form>
 
+      <div className="mb-3 flex items-center gap-2">
+        {(['ALL', 'OPEN', 'DONE'] as const).map((value) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setFilter(value)}
+            className={`rounded-full px-3 py-1 text-xs font-semibold tracking-[0.08em] transition ${
+              filter === value
+                ? 'bg-[var(--surface-active)] text-[var(--text-primary)]'
+                : 'border border-[var(--surface-border)] text-[var(--text-secondary)] hover:border-[var(--surface-border-hover)]'
+            }`}
+          >
+            {value}
+          </button>
+        ))}
+      </div>
+
       {isLoading ? (
         <div className="flex items-center gap-2 rounded-xl border border-[var(--surface-border)] bg-[var(--surface)] px-3 py-4 text-sm text-[var(--text-secondary)]">
           <Loader2 size={16} className="animate-spin" /> Loading todos...
@@ -148,16 +225,24 @@ export default function TodoList({ selectedDate }: TodoListProps) {
         <div className="rounded-xl border border-dashed border-[var(--surface-border)] px-3 py-4 text-sm text-[var(--text-secondary)]">
           No tasks for this date yet.
         </div>
+      ) : filteredTodos.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-[var(--surface-border)] px-3 py-4 text-sm text-[var(--text-secondary)]">
+          No tasks in this filter.
+        </div>
       ) : (
         <ul className="space-y-2">
-          {sortedTodos.map((todo) => {
+          {filteredTodos.map((todo) => {
             const isToggling = togglingIds.has(todo.id)
             const isDeleting = deletingIds.has(todo.id)
 
             return (
               <li
                 key={todo.id}
-                className="flex items-center gap-3 rounded-xl border border-[var(--surface-border)] bg-[var(--surface)] px-3 py-2"
+                className={`flex items-center gap-3 rounded-xl border px-3 py-2 transition ${
+                  todo.isCompleted
+                    ? 'border-[var(--surface-border)] bg-[var(--surface-active)]'
+                    : 'border-[var(--surface-border)] bg-[var(--surface)]'
+                }`}
               >
                 <input
                   type="checkbox"
