@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { createTimeEntry } from '@/actions/timeEntries'
 import { useToast } from '@/components/ToastProvider'
-import { Play, Square, Pause, Coffee, Zap, Maximize, Minimize, Settings2, X, RotateCcw, Timer, Tag } from 'lucide-react'
+import { Play, Square, Pause, Coffee, Zap, Maximize, Minimize, Settings2, X, RotateCcw, Timer, Tag, CalendarDays } from 'lucide-react'
 
 type Mode = 'focus' | 'pomodoro'
 type PomodoroPhase = 'work' | 'shortBreak' | 'longBreak'
@@ -38,8 +38,9 @@ const Btn = ({
   </button>
 )
 
-export default function LiveTimer({ categories }: { categories: any[] }) {
+export default function LiveTimer({ categories, todayBlocks = [] }: { categories: any[], todayBlocks?: any[] }) {
   const { toast } = useToast()
+  const [now, setNow] = useState(new Date())
   const [running, setRunning] = useState(false)
   const [paused, setPaused] = useState(false)
   const [elapsed, setElapsed] = useState(0)
@@ -55,6 +56,19 @@ export default function LiveTimer({ categories }: { categories: any[] }) {
   const [modalCat, setModalCat] = useState('')
   const [modalTagIds, setModalTagIds] = useState<string[]>([])
   const [portalReady, setPortalReady] = useState(false)
+
+  // Track time for active routine block
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  const nowMinutes = (now.getHours() * 60) + now.getMinutes()
+  
+  const activeBlock = useMemo(
+    () => todayBlocks?.find((block) => block.startMinutes <= nowMinutes && nowMinutes < block.endMinutes),
+    [todayBlocks, nowMinutes]
+  )
 
   // Pomodoro settings
   const [showSettings, setShowSettings] = useState(false)
@@ -439,6 +453,20 @@ export default function LiveTimer({ categories }: { categories: any[] }) {
       {/* Timer card */}
       {!fullscreen && (
         <div className="glass-glow reveal-up" style={{ '--reveal-delay': '150ms', padding: '1.25rem' } as React.CSSProperties}>
+          
+          {/* Active Routine Block Banner */}
+          {activeBlock && (
+            <div style={{ marginBottom: '1rem', padding: '0.75rem', background: 'var(--surface-active)', border: '1px solid var(--accent-primary)', borderRadius: '12px', display: 'flex', alignItems: 'flex-start', gap: '0.75rem', animation: 'fadeIn 0.5s ease-out' }}>
+               <div style={{ padding: '0.4rem', background: 'var(--accent-primary)', color: 'white', borderRadius: '8px' }}>
+                  <CalendarDays size={16} />
+               </div>
+               <div>
+                 <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--accent-primary)', fontWeight: 700, marginBottom: '2px' }}>Current Focus Routine</div>
+                 <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>{activeBlock.task}</div>
+               </div>
+            </div>
+          )}
+
           {/* Top controls */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
             <div style={{ display: 'flex', gap: '0.35rem' }}>

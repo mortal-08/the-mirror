@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Activity, Database, BookOpen, Clock, Timer, History, Settings, Shuffle, BarChart3 } from 'lucide-react'
+import { Activity, Database, BookOpen, Clock, Timer, History, Settings, Shuffle, BarChart3, CalendarDays } from 'lucide-react'
 import { upsertJournal } from '@/actions/journal'
 import { useToast } from '@/components/ToastProvider'
 import ManualEntryForm from '@/components/ManualEntryForm'
 import EntryList from '@/components/EntryList'
 import TodoList from '@/components/TodoList'
-import RoutinePlanner from '@/components/RoutinePlanner'
+import TodoList from '@/components/TodoList'
+import { ChevronRight } from 'lucide-react'
 
 const QUOTES = [
   { text: "The key is in not spending time, but in investing it.", author: "Stephen R. Covey" },
@@ -65,12 +66,13 @@ const NAV_ORBS = [
   { href: '/timer', label: 'Timer', icon: Timer, color: '#7c3aed' },
   { href: '/journal', label: 'Journal', icon: BookOpen, color: '#2563eb' },
   { href: '/history', label: 'History', icon: History, color: '#06b6d4' },
+  { href: '/routine', label: 'Routine', icon: CalendarDays, color: '#ec4899' },
   { href: '/analytics', label: 'Analytics', icon: BarChart3, color: '#f59e0b' },
   { href: '/settings', label: 'Settings', icon: Settings, color: '#10b981' },
 ]
 
-export default function DashboardClient({ stats, categories, recentEntries, todayJournal }: {
-  stats: any; categories: any[]; recentEntries: any[]; todayJournal: any
+export default function DashboardClient({ stats, categories, recentEntries, todayJournal, todayBlocks = [] }: {
+  stats: any; categories: any[]; recentEntries: any[]; todayJournal: any; todayBlocks?: any[]
 }) {
   const { toast } = useToast()
   const router = useRouter()
@@ -111,6 +113,28 @@ export default function DashboardClient({ stats, categories, recentEntries, toda
   const todayPct = Math.min((stats.todaySeconds / stats.dailyGoal) * 100, 100)
   const weekPct = Math.min((stats.weekSeconds / stats.weeklyGoal) * 100, 100)
   const todayDashboardDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
+  const formatMinutes = (totalMinutes: number): string => {
+    const hours = Math.floor(totalMinutes / 60)
+    const minutes = totalMinutes % 60
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+  }
+
+  const nowMinutes = (now.getHours() * 60) + now.getMinutes()
+
+  const activeBlock = useMemo(
+    () => todayBlocks?.find((block) => block.startMinutes <= nowMinutes && nowMinutes < block.endMinutes),
+    [todayBlocks, nowMinutes]
+  )
+
+  const activeProgress = useMemo(() => {
+    if (!activeBlock) return 0
+    const total = activeBlock.endMinutes - activeBlock.startMinutes
+    if (total <= 0) return 0
+    const elapsed = nowMinutes - activeBlock.startMinutes
+    const raw = (elapsed / total) * 100
+    return Math.min(Math.max(raw, 0), 100)
+  }, [activeBlock, nowMinutes])
 
   const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
   const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
@@ -211,15 +235,50 @@ export default function DashboardClient({ stats, categories, recentEntries, toda
         </div>
       </div>
 
-      <div className="reveal-up" style={{ '--reveal-delay': '170ms' } as React.CSSProperties}>
-        <TodoList
-          selectedDate={todayDashboardDate}
-          title="Today's Accountability Todos"
-          showDateBadge={false}
-        />
-      </div>
+      {/* ═══ REALTIME FOCUS & TODOS ═══ */}
+      <div className="grid gap-6 xl:grid-cols-2 reveal-up" style={{ '--reveal-delay': '170ms' } as React.CSSProperties}>
+        {/* Active Focus Widget */}
+        <div className="glass" style={{ padding: '2rem', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0, fontSize: '0.9rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+              <Timer size={18} color="var(--accent-primary)" /> Current Focus
+            </h3>
+            <button onClick={() => router.push('/routine')} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem', color: 'var(--accent-primary)', background: 'transparent', border: 'none', cursor: 'pointer', fontWeight: 600, textTransform: 'uppercase' }}>
+              Full Routine <ChevronRight size={14} />
+            </button>
+          </div>
 
-      <RoutinePlanner />
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', background: 'var(--surface)', borderRadius: '16px', padding: '1.5rem', border: '1px solid var(--surface-border)', position: 'relative', overflow: 'hidden' }}>
+            {activeBlock ? (
+              <>
+                <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: `${activeProgress}%`, background: 'var(--accent-primary)', opacity: 0.1, zIndex: 0 }} />
+                <div style={{ zIndex: 1 }}>
+                  <p style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--accent-primary)', fontWeight: 700, marginBottom: '0.5rem' }}>In Progress</p>
+                  <p style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem', lineHeight: 1.2 }}>{activeBlock.task}</p>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
+                    {formatMinutes(activeBlock.startMinutes)} <span style={{ opacity: 0.5, margin: '0 4px' }}>—</span> {formatMinutes(activeBlock.endMinutes)}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <div style={{ textAlign: 'center', color: 'var(--text-tertiary)', zIndex: 1 }}>
+                <Timer size={32} style={{ opacity: 0.4, margin: '0 auto 1rem auto' }} />
+                <p style={{ fontSize: '0.9rem' }}>No active routine block.</p>
+                <p style={{ fontSize: '0.75rem', marginTop: '0.5rem' }}>Take a break or set your next focus block.</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Accountability Todos */}
+        <div>
+          <TodoList
+            selectedDate={todayDashboardDate}
+            title="Today's Accountability Todos"
+            showDateBadge={false}
+          />
+        </div>
+      </div>
 
  
       {/* ═══ JOURNAL ═══ */}

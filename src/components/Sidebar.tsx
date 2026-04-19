@@ -7,7 +7,8 @@ import { useState, useEffect, createContext, useContext } from 'react'
 import { useTheme } from './ThemeProvider'
 import {
   LayoutDashboard, Timer, History, Settings, LogOut,
-  BookOpen, Moon, Sun, Orbit, PanelLeftClose, PanelLeft, BarChart3
+  BookOpen, Moon, Sun, Orbit, PanelLeftClose, PanelLeft, BarChart3,
+  CalendarDays
 } from 'lucide-react'
 
 const SidebarContext = createContext<{ collapsed: boolean; setCollapsed: (v: boolean) => void }>({ collapsed: false, setCollapsed: () => {} })
@@ -20,6 +21,7 @@ const NAV_ITEMS = [
   { href: '/journal', label: 'Journal', icon: BookOpen },
   { href: '/history', label: 'History', icon: History },
   { href: '/analytics', label: 'Analytics', icon: BarChart3 },
+  { href: '/routine', label: 'Routine', icon: CalendarDays },
   { href: '/settings', label: 'Settings', icon: Settings },
 ]
 

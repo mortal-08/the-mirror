@@ -1,7 +1,7 @@
 'use client'
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
-import { CalendarDays, Check, Clock3, GripVertical, Loader2, Pencil, Plus, Timer, Trash2, X } from 'lucide-react'
+import { CalendarDays, Check, Clock3, GripVertical, Loader2, Pencil, Plus, Trash2, X, ChevronLeft, ChevronRight, Activity } from 'lucide-react'
 import { createRoutineBlock, deleteRoutineBlock, getRoutineBlocks, reorderRoutineBlocks, updateRoutineBlock } from '@/actions/routines'
 import { useToast } from '@/components/ToastProvider'
 import TodoList from '@/components/TodoList'
@@ -28,10 +28,6 @@ function dateKey(date: Date): string {
   return `${y}-${m}-${d}`
 }
 
-function toDateInputValue(date: Date): string {
-  return dateKey(date)
-}
-
 function formatMinutes(totalMinutes: number): string {
   const hours = Math.floor(totalMinutes / 60)
   const minutes = totalMinutes % 60
@@ -50,9 +46,7 @@ function reorderBlocksById(blocks: RoutineBlock[], draggingId: string, targetId:
   const startIdx = blocks.findIndex((block) => block.id === draggingId)
   const endIdx = blocks.findIndex((block) => block.id === targetId)
 
-  if (startIdx < 0 || endIdx < 0 || startIdx === endIdx) {
-    return blocks
-  }
+  if (startIdx < 0 || endIdx < 0 || startIdx === endIdx) return blocks
 
   const copy = [...blocks]
   const [moved] = copy.splice(startIdx, 1)
@@ -66,17 +60,17 @@ export default function RoutinePlanner() {
   const [selectedDate, setSelectedDate] = useState<Date>(() => normalizeToLocalDay(new Date()))
 
   const [selectedBlocks, setSelectedBlocks] = useState<RoutineBlock[]>([])
-  const [todayBlocks, setTodayBlocks] = useState<RoutineBlock[]>([])
-
   const [isLoadingSelected, setIsLoadingSelected] = useState(true)
   const [isCreating, setIsCreating] = useState(false)
   const [isReordering, setIsReordering] = useState(false)
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set())
   const [editingId, setEditingId] = useState<string | null>(null)
+  
   const [editTask, setEditTask] = useState('')
   const [editStartTime, setEditStartTime] = useState('09:00')
   const [editEndTime, setEditEndTime] = useState('10:00')
   const [isSavingEdit, setIsSavingEdit] = useState(false)
+  
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [dragOverId, setDragOverId] = useState<string | null>(null)
 
@@ -85,79 +79,39 @@ export default function RoutinePlanner() {
   const [endTime, setEndTime] = useState('10:30')
 
   const selectedDateKey = useMemo(() => dateKey(selectedDate), [selectedDate])
-  const todayDate = useMemo(
-    () => new Date(now.getFullYear(), now.getMonth(), now.getDate()),
-    [now.getFullYear(), now.getMonth(), now.getDate()]
-  )
-  const todayDateKey = useMemo(() => dateKey(todayDate), [todayDate])
-  const isSelectedToday = selectedDateKey === todayDateKey
+  const todayDate = useMemo(() => normalizeToLocalDay(now), [now.getFullYear(), now.getMonth(), now.getDate()])
+  const isSelectedToday = selectedDateKey === dateKey(todayDate)
 
+  // Poller for current time
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000)
     return () => clearInterval(timer)
   }, [])
 
-  const loadBlocksForDate = useCallback(
-    async (date: Date): Promise<RoutineBlock[]> => {
-      const result = await getRoutineBlocks(date)
-      if ('error' in result) {
-        toast(result.error, 'error')
-        return []
-      }
-
-      return sortBlocks(result.data)
-    },
-    [toast]
-  )
+  const loadBlocksForDate = useCallback(async (date: Date): Promise<RoutineBlock[]> => {
+    const result = await getRoutineBlocks(date)
+    if ('error' in result) {
+      toast(result.error, 'error')
+      return []
+    }
+    return sortBlocks(result.data)
+  }, [toast])
 
   useEffect(() => {
+    let active = true
     const loadSelected = async () => {
       setIsLoadingSelected(true)
       const blocks = await loadBlocksForDate(selectedDate)
-      setSelectedBlocks(blocks)
-      setIsLoadingSelected(false)
-
-      if (selectedDateKey === todayDateKey) {
-        setTodayBlocks(blocks)
+      if (active) {
+        setSelectedBlocks(blocks)
+        setIsLoadingSelected(false)
       }
     }
-
     loadSelected()
-  }, [loadBlocksForDate, selectedDate, selectedDateKey, todayDateKey])
-
-  useEffect(() => {
-    const loadToday = async () => {
-      const blocks = await loadBlocksForDate(todayDate)
-      setTodayBlocks(blocks)
-    }
-
-    if (selectedDateKey !== todayDateKey) {
-      loadToday()
-    }
-  }, [loadBlocksForDate, selectedDateKey, todayDate, todayDateKey])
+    return () => { active = false }
+  }, [loadBlocksForDate, selectedDate, selectedDateKey])
 
   const nowMinutes = getCurrentDayMinutes(now)
-
-  const activeBlock = useMemo(
-    () => todayBlocks.find((block) => block.startMinutes <= nowMinutes && nowMinutes < block.endMinutes),
-    [todayBlocks, nowMinutes]
-  )
-
-  const nextBlock = useMemo(
-    () => todayBlocks.find((block) => block.startMinutes > nowMinutes),
-    [todayBlocks, nowMinutes]
-  )
-
-  const activeProgress = useMemo(() => {
-    if (!activeBlock) return 0
-
-    const total = activeBlock.endMinutes - activeBlock.startMinutes
-    if (total <= 0) return 0
-
-    const elapsed = nowMinutes - activeBlock.startMinutes
-    const raw = (elapsed / total) * 100
-    return Math.min(Math.max(raw, 0), 100)
-  }, [activeBlock, nowMinutes])
 
   const handleCreateBlock = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -170,44 +124,31 @@ export default function RoutinePlanner() {
     }
 
     setIsCreating(true)
-
     const targetDate = normalizeToLocalDay(selectedDate)
     const result = await createRoutineBlock(trimmedTask, targetDate, startTime, endTime)
 
     if ('error' in result) {
       toast(result.error, 'error')
     } else {
-      const created = result.data
-      setSelectedBlocks((prev) => sortBlocks([...prev, created]))
-
-      if (selectedDateKey === todayDateKey) {
-        setTodayBlocks((prev) => sortBlocks([...prev, created]))
-      }
-
+      setSelectedBlocks((prev) => sortBlocks([...prev, result.data]))
       setTask('')
       toast('Routine block added.', 'success')
     }
-
     setIsCreating(false)
   }
 
   const handleDeleteBlock = async (id: string) => {
     const previousSelected = selectedBlocks
-    const previousToday = todayBlocks
-
     setDeletingIds((prev) => new Set(prev).add(id))
     setSelectedBlocks((prev) => prev.filter((block) => block.id !== id))
-    setTodayBlocks((prev) => prev.filter((block) => block.id !== id))
 
     const result = await deleteRoutineBlock(id)
     if ('error' in result) {
       setSelectedBlocks(previousSelected)
-      setTodayBlocks(previousToday)
       toast(result.error, 'error')
     } else {
       toast('Routine block removed.', 'success')
     }
-
     setDeletingIds((prev) => {
       const next = new Set(prev)
       next.delete(id)
@@ -224,14 +165,10 @@ export default function RoutinePlanner() {
 
   const cancelEditBlock = () => {
     setEditingId(null)
-    setEditTask('')
-    setEditStartTime('09:00')
-    setEditEndTime('10:00')
   }
 
   const saveEditBlock = async () => {
     if (!editingId || isSavingEdit) return
-
     setIsSavingEdit(true)
 
     const result = await updateRoutineBlock(editingId, {
@@ -247,59 +184,38 @@ export default function RoutinePlanner() {
     }
 
     setSelectedBlocks((prev) => sortBlocks(prev.map((block) => (block.id === editingId ? result.data : block))))
-
-    if (selectedDateKey === todayDateKey) {
-      setTodayBlocks((prev) => sortBlocks(prev.map((block) => (block.id === editingId ? result.data : block))))
-    }
-
     toast('Routine block updated.', 'success')
     setIsSavingEdit(false)
     cancelEditBlock()
   }
 
-  const onDragStart = (id: string) => {
-    if (editingId) return
-    setDraggingId(id)
-  }
-
+  const onDragStart = (id: string) => { if (!editingId) setDraggingId(id) }
   const onDragOver = (e: React.DragEvent<HTMLLIElement>, id: string) => {
     e.preventDefault()
-    if (!draggingId || draggingId === id) return
-    setDragOverId(id)
+    if (draggingId && draggingId !== id) setDragOverId(id)
   }
 
   const onDrop = async (e: React.DragEvent<HTMLLIElement>, id: string) => {
     e.preventDefault()
-
     if (!draggingId || draggingId === id || isReordering) {
-      setDraggingId(null)
-      setDragOverId(null)
-      return
+      setDraggingId(null); setDragOverId(null); return
     }
 
     const previousSelected = selectedBlocks
     const reordered = reorderBlocksById(selectedBlocks, draggingId, id)
-
     if (reordered === selectedBlocks) {
-      setDraggingId(null)
-      setDragOverId(null)
-      return
+      setDraggingId(null); setDragOverId(null); return
     }
 
     setSelectedBlocks(reordered)
     setIsReordering(true)
 
     const result = await reorderRoutineBlocks(selectedDate, reordered.map((block) => block.id))
-
     if ('error' in result) {
       setSelectedBlocks(previousSelected)
       toast(result.error, 'error')
     } else {
-      const sorted = sortBlocks(result.data)
-      setSelectedBlocks(sorted)
-      if (selectedDateKey === todayDateKey) {
-        setTodayBlocks(sorted)
-      }
+      setSelectedBlocks(sortBlocks(result.data))
       toast('Routine reordered.', 'success')
     }
 
@@ -308,139 +224,83 @@ export default function RoutinePlanner() {
     setDragOverId(null)
   }
 
+  const changeDate = (days: number) => {
+    const next = new Date(selectedDate)
+    next.setDate(next.getDate() + days)
+    setSelectedDate(normalizeToLocalDay(next))
+  }
+
   return (
-    <section className="glass reveal-up" style={{ '--reveal-delay': '180ms', padding: '2rem' } as React.CSSProperties}>
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <CalendarDays size={18} color="var(--accent-secondary)" />
-          <h3 style={{ margin: 0, fontSize: '0.9rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
-            Routine Planning
-          </h3>
+    <div className="grid gap-6 xl:grid-cols-[1fr_400px]">
+      
+      {/* LEFT COLUMN: Routine Planner */}
+      <section className="glass p-6 md:p-8" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        
+        {/* Elite Header & Date Navigation */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <CalendarDays size={20} color="var(--accent-primary)" />
+            <h3 style={{ margin: 0, fontSize: '1rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-primary)', fontWeight: 700 }}>
+              Routine blocks
+            </h3>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'var(--surface-active)', padding: '0.3rem', borderRadius: '12px', border: '1px solid var(--surface-border)' }}>
+            <button onClick={() => changeDate(-1)} style={{ padding: '0.4rem', borderRadius: '8px', border: 'none', background: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer' }} className="hover-bg-surface"><ChevronLeft size={16} /></button>
+            <div style={{ padding: '0 0.75rem', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', minWidth: '130px', textAlign: 'center' }}>
+              {selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+              {isSelectedToday && <span style={{ marginLeft: '6px', color: 'var(--accent-primary)', fontSize: '0.65rem', textTransform: 'uppercase' }}>(Today)</span>}
+            </div>
+            <button onClick={() => changeDate(1)} style={{ padding: '0.4rem', borderRadius: '8px', border: 'none', background: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer' }} className="hover-bg-surface"><ChevronRight size={16} /></button>
+            <button
+              onClick={() => setSelectedDate(normalizeToLocalDay(new Date()))}
+              disabled={isSelectedToday}
+              style={{ marginLeft: '4px', padding: '0.4rem 0.8rem', fontSize: '0.7rem', fontWeight: 700, borderRadius: '8px', border: 'none', background: isSelectedToday ? 'transparent' : 'var(--accent-primary)', color: isSelectedToday ? 'var(--text-tertiary)' : 'var(--text-inverse)', cursor: isSelectedToday ? 'default' : 'pointer', transition: 'all 0.2s' }}
+            >
+              TODAY
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <input
-            type="date"
-            value={toDateInputValue(selectedDate)}
-            onChange={(e) => setSelectedDate(normalizeToLocalDay(new Date(`${e.target.value}T00:00:00`)))}
-            className="rounded-lg border border-[var(--surface-border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--surface-border-hover)]"
-          />
-          <button
-            type="button"
-            onClick={() => setSelectedDate(normalizeToLocalDay(new Date()))}
-            className="rounded-lg border border-[var(--surface-border)] bg-[var(--surface)] px-3 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)] transition hover:border-[var(--surface-border-hover)]"
-          >
-            Today
+        {/* Elegant Creation Form */}
+        <form onSubmit={handleCreateBlock} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto auto auto', gap: '0.5rem', background: 'var(--surface)', padding: '0.5rem', borderRadius: '12px', border: '1px solid var(--surface-border)', alignItems: 'center' }} className="routine-form-grid">
+          <input type="text" value={task} onChange={(e) => setTask(e.target.value)} placeholder="Task (e.g. Deep Work)..." style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', padding: '0.6rem 0.8rem', fontSize: '0.85rem', color: 'var(--text-primary)' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0 0.5rem', borderLeft: '1px solid var(--surface-border)' }}>
+            <span style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', fontWeight: 600 }}>Start</span>
+            <input type="time" step={60} value={startTime} onChange={(e) => setStartTime(e.target.value)} style={{ background: 'transparent', border: 'none', outline: 'none', fontSize: '0.85rem', color: 'var(--text-secondary)', padding: '0.2rem', cursor: 'pointer' }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0 0.5rem', borderLeft: '1px solid var(--surface-border)' }}>
+            <span style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', fontWeight: 600 }}>End</span>
+            <input type="time" step={60} value={endTime} onChange={(e) => setEndTime(e.target.value)} style={{ background: 'transparent', border: 'none', outline: 'none', fontSize: '0.85rem', color: 'var(--text-secondary)', padding: '0.2rem', cursor: 'pointer' }} />
+          </div>
+          <button type="submit" disabled={isCreating} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--accent-primary)', color: 'white', border: 'none', borderRadius: '8px', width: '36px', height: '36px', cursor: 'pointer', transition: 'all 0.2s', opacity: isCreating ? 0.6 : 1 }}>
+             {isCreating ? <Loader2 size={16} className="animate-spin" /> : <Plus size={18} />}
           </button>
-        </div>
-      </div>
+        </form>
 
-      <div className="mb-5 rounded-xl border border-[var(--surface-border)] bg-[var(--surface)] p-4">
-        <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-tertiary)]">
-          <Timer size={14} /> Accountability
-        </div>
-
-        {activeBlock ? (
-          <div>
-            <p className="text-sm text-[var(--text-secondary)]">You should be doing:</p>
-            <p className="mt-1 text-base font-semibold text-[var(--text-primary)]">{activeBlock.task}</p>
-            <p className="mt-1 text-xs text-[var(--text-tertiary)]">
-              {formatMinutes(activeBlock.startMinutes)} - {formatMinutes(activeBlock.endMinutes)}
-            </p>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--bg-tertiary)]">
-              <div
-                className="h-full rounded-full"
-                style={{ width: `${activeProgress}%`, background: 'var(--accent-gradient)' }}
-              />
-            </div>
-          </div>
-        ) : (
-          <div>
-            <p className="text-sm text-[var(--text-secondary)]">No active routine block right now.</p>
-            {nextBlock ? (
-              <p className="mt-1 text-xs text-[var(--text-tertiary)]">
-                Next: {nextBlock.task} at {formatMinutes(nextBlock.startMinutes)}
-              </p>
-            ) : (
-              <p className="mt-1 text-xs text-[var(--text-tertiary)]">No more blocks scheduled for today.</p>
-            )}
-          </div>
-        )}
-      </div>
-
-      <form onSubmit={handleCreateBlock} className="grid gap-3 md:grid-cols-[1fr_130px_130px_auto] md:items-end">
-        <div>
-          <label className="mb-1 block text-xs uppercase tracking-[0.1em] text-[var(--text-tertiary)]">Task</label>
-          <input
-            type="text"
-            value={task}
-            onChange={(e) => setTask(e.target.value)}
-            placeholder="Deep Work, Review, Exercise..."
-            className="w-full rounded-xl border border-[var(--surface-border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--surface-border-hover)]"
-          />
-        </div>
-
-        <div>
-          <label className="mb-1 block text-xs uppercase tracking-[0.1em] text-[var(--text-tertiary)]">Start</label>
-          <input
-            type="time"
-            step={60}
-            value={startTime}
-            onChange={(e) => setStartTime(e.target.value)}
-            className="w-full rounded-xl border border-[var(--surface-border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--surface-border-hover)]"
-          />
-        </div>
-
-        <div>
-          <label className="mb-1 block text-xs uppercase tracking-[0.1em] text-[var(--text-tertiary)]">End</label>
-          <input
-            type="time"
-            step={60}
-            value={endTime}
-            onChange={(e) => setEndTime(e.target.value)}
-            className="w-full rounded-xl border border-[var(--surface-border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--surface-border-hover)]"
-          />
-        </div>
-
-        <button
-          type="submit"
-          disabled={isCreating}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--accent-primary)] px-4 py-2 text-sm font-semibold text-[var(--text-inverse)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {isCreating ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-          Add Block
-        </button>
-      </form>
-
-      <div className="mt-5 grid gap-4 xl:grid-cols-2">
-        <div>
-          <h4 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-tertiary)]">
-            <Clock3 size={14} />
-            Blocks for {selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-          </h4>
-
+        {/* Blocks List */}
+        <div style={{ minHeight: '300px' }}>
           {isLoadingSelected ? (
-            <div className="flex items-center gap-2 rounded-xl border border-[var(--surface-border)] bg-[var(--surface)] px-3 py-4 text-sm text-[var(--text-secondary)]">
-              <Loader2 size={16} className="animate-spin" /> Loading blocks...
-            </div>
+             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
+                <Loader2 size={24} className="animate-spin" />
+             </div>
           ) : selectedBlocks.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-[var(--surface-border)] px-3 py-4 text-sm text-[var(--text-secondary)]">
-              No routine blocks for this date yet.
-            </div>
+             <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-tertiary)', fontSize: '0.9rem', border: '1px dashed var(--surface-border)', borderRadius: '12px' }}>
+                No routine blocks scheduled for this date.
+             </div>
           ) : (
-            <>
-              <div className="mb-2 rounded-lg border border-[var(--surface-border)] bg-[var(--surface)] px-3 py-2 text-xs text-[var(--text-secondary)]">
-                Drag a block row to quickly reassign task order across your existing time slots.
-              </div>
-
-              <ul className="space-y-2">
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               {selectedBlocks.map((block) => {
                 const isDeleting = deletingIds.has(block.id)
-                const isActiveNow = selectedDateKey === todayDateKey
-                  && block.startMinutes <= nowMinutes
-                  && nowMinutes < block.endMinutes
                 const isEditing = editingId === block.id
                 const isDropTarget = dragOverId === block.id && draggingId !== block.id
+                
+                // Active indicators
+                const isActiveNow = isSelectedToday && block.startMinutes <= nowMinutes && nowMinutes < block.endMinutes
+                const totalMins = block.endMinutes - block.startMinutes
+                const passedMins = nowMinutes - block.startMinutes
+                const rawProgress = totalMins > 0 ? (passedMins / totalMins) * 100 : 0
+                const progressPct = Math.min(Math.max(rawProgress, 0), 100)
 
                 return (
                   <li
@@ -449,100 +309,50 @@ export default function RoutinePlanner() {
                     onDragStart={() => onDragStart(block.id)}
                     onDragOver={(e) => onDragOver(e, block.id)}
                     onDrop={(e) => onDrop(e, block.id)}
-                    onDragEnd={() => {
-                      setDraggingId(null)
-                      setDragOverId(null)
+                    onDragEnd={() => { setDraggingId(null); setDragOverId(null); }}
+                    style={{
+                      position: 'relative', overflow: 'hidden',
+                      display: 'flex', alignItems: 'center', gap: '0.75rem',
+                      padding: '0.75rem 1rem', borderRadius: '12px',
+                      background: isActiveNow ? 'var(--bg-tertiary)' : (isDropTarget ? 'var(--surface-hover)' : 'var(--surface)'),
+                      border: `1px solid ${isActiveNow ? 'var(--accent-primary)' : 'var(--surface-border)'}`,
+                      boxShadow: isActiveNow ? '0 0 15px rgba(124, 58, 237, 0.15)' : 'none',
+                      transition: 'all 0.2s',
                     }}
-                    className={`flex items-center gap-3 rounded-xl border px-3 py-2 ${
-                      isDropTarget
-                        ? 'border-[var(--accent-secondary)] bg-[var(--surface-hover)]'
-                        : isActiveNow
-                        ? 'border-[var(--accent-primary)] bg-[var(--surface-active)]'
-                        : 'border-[var(--surface-border)] bg-[var(--surface)]'
-                    }`}
                   >
-                    <button
-                      type="button"
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-secondary)]"
-                      title="Drag to reorder"
-                    >
-                      <GripVertical size={15} />
+                    {/* Active Background Fill */}
+                    {isActiveNow && (
+                       <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${progressPct}%`, background: 'var(--accent-primary)', opacity: 0.1, zIndex: 0 }} />
+                    )}
+
+                    <button title="Drag to reorder" style={{ cursor: 'grab', background: 'none', border: 'none', color: 'var(--text-tertiary)', padding: '0.2rem', zIndex: 1 }}>
+                      <GripVertical size={16} />
                     </button>
 
                     {isEditing ? (
-                      <>
-                        <div className="grid flex-1 gap-2 md:grid-cols-[1fr_120px_120px]">
-                          <input
-                            type="text"
-                            value={editTask}
-                            onChange={(e) => setEditTask(e.target.value)}
-                            className="w-full rounded-lg border border-[var(--surface-border)] bg-[var(--surface)] px-2 py-1.5 text-sm text-[var(--text-primary)]"
-                            placeholder="Task"
-                          />
-                          <input
-                            type="time"
-                            step={60}
-                            value={editStartTime}
-                            onChange={(e) => setEditStartTime(e.target.value)}
-                            className="w-full rounded-lg border border-[var(--surface-border)] bg-[var(--surface)] px-2 py-1.5 text-sm text-[var(--text-primary)]"
-                          />
-                          <input
-                            type="time"
-                            step={60}
-                            value={editEndTime}
-                            onChange={(e) => setEditEndTime(e.target.value)}
-                            className="w-full rounded-lg border border-[var(--surface-border)] bg-[var(--surface)] px-2 py-1.5 text-sm text-[var(--text-primary)]"
-                          />
+                      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto auto', gap: '0.5rem', alignItems: 'center', zIndex: 1 }}>
+                        <input type="text" value={editTask} onChange={(e) => setEditTask(e.target.value)} style={{ width: '100%', background: 'var(--bg-primary)', border: '1px solid var(--surface-border)', padding: '0.4rem 0.6rem', borderRadius: '6px', fontSize: '0.85rem', color: 'white', outline: 'none' }} />
+                        <input type="time" step={60} value={editStartTime} onChange={(e) => setEditStartTime(e.target.value)} style={{ background: 'var(--bg-primary)', border: '1px solid var(--surface-border)', padding: '0.4rem', borderRadius: '6px', color: 'var(--text-secondary)', fontSize: '0.85rem', outline: 'none' }} />
+                        <input type="time" step={60} value={editEndTime} onChange={(e) => setEditEndTime(e.target.value)} style={{ background: 'var(--bg-primary)', border: '1px solid var(--surface-border)', padding: '0.4rem', borderRadius: '6px', color: 'var(--text-secondary)', fontSize: '0.85rem', outline: 'none' }} />
+                        <div style={{ display: 'flex', gap: '0.25rem' }}>
+                          <button onClick={saveEditBlock} disabled={isSavingEdit} style={{ background: 'var(--surface-border)', color: '#10b981', border: 'none', width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Check size={14} /></button>
+                          <button onClick={cancelEditBlock} style={{ background: 'var(--surface-border)', color: 'var(--text-secondary)', border: 'none', width: '28px', height: '28px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><X size={14} /></button>
                         </div>
-
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={saveEditBlock}
-                            disabled={isSavingEdit}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-secondary)] transition hover:bg-[var(--surface-hover)] hover:text-emerald-400 disabled:cursor-not-allowed disabled:opacity-40"
-                            aria-label="Save routine block"
-                          >
-                            {isSavingEdit ? <Loader2 size={14} className="animate-spin" /> : <Check size={15} />}
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={cancelEditBlock}
-                            disabled={isSavingEdit}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-secondary)] transition hover:bg-[var(--surface-hover)] hover:text-amber-300 disabled:cursor-not-allowed disabled:opacity-40"
-                            aria-label="Cancel editing routine block"
-                          >
-                            <X size={15} />
-                          </button>
-                        </div>
-                      </>
+                      </div>
                     ) : (
                       <>
-                        <div className="min-w-[88px] text-sm font-semibold text-[var(--text-secondary)]">
+                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', fontWeight: 600, color: isActiveNow ? 'var(--accent-primary)' : 'var(--text-secondary)', zIndex: 1 }}>
                           {formatMinutes(block.startMinutes)} - {formatMinutes(block.endMinutes)}
                         </div>
-
-                        <div className="flex-1 text-sm text-[var(--text-primary)]">{block.task}</div>
-
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => startEditBlock(block)}
-                            disabled={isDeleting || Boolean(editingId)}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-secondary)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--accent-primary)] disabled:cursor-not-allowed disabled:opacity-40"
-                            aria-label="Edit routine block"
-                          >
+                        <div style={{ flex: 1, fontSize: '0.9rem', color: 'var(--text-primary)', fontWeight: isActiveNow ? 600 : 400, zIndex: 1 }}>
+                          {block.task}
+                          {isActiveNow && <span style={{ marginLeft: '10px', fontSize: '0.65rem', textTransform: 'uppercase', padding: '2px 6px', background: 'var(--accent-primary)', color: 'white', borderRadius: '4px', letterSpacing: '0.05em' }}>In Progress</span>}
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.25rem', zIndex: 1 }}>
+                          <button onClick={() => startEditBlock(block)} disabled={isDeleting || Boolean(editingId)} style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', padding: '0.4rem', cursor: 'pointer', transition: 'color 0.2s' }} className="hover-text-primary">
                             <Pencil size={14} />
                           </button>
-
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteBlock(block.id)}
-                            disabled={isDeleting || Boolean(editingId)}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-secondary)] transition hover:bg-[var(--surface-hover)] hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-40"
-                            aria-label="Delete routine block"
-                          >
+                          <button onClick={() => handleDeleteBlock(block.id)} disabled={isDeleting || Boolean(editingId)} style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', padding: '0.4rem', cursor: 'pointer', transition: 'color 0.2s' }} className="hover-text-red">
                             {isDeleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                           </button>
                         </div>
@@ -551,32 +361,33 @@ export default function RoutinePlanner() {
                   </li>
                 )
               })}
-              </ul>
-            </>
+            </ul>
           )}
         </div>
+      </section>
 
-        {isSelectedToday ? (
-          <div className="rounded-2xl border border-[var(--surface-border)] bg-[var(--surface)] p-4">
-            <h4 className="mb-2 text-sm font-bold uppercase tracking-[0.1em] text-[var(--text-secondary)]">
-              Todos for Planned Date
-            </h4>
-            <p className="text-sm text-[var(--text-secondary)]">
-              You are planning for today. Use the "Today's Accountability Todos" panel above to manage current-day tasks.
-            </p>
-            <p className="mt-2 text-xs text-[var(--text-tertiary)]">
-              Pick another date to plan a future todo list alongside routine blocks.
-            </p>
-          </div>
-        ) : (
-          <TodoList
+      {/* RIGHT COLUMN: Todos */}
+      <section style={{ display: 'flex', flexDirection: 'column' }}>
+         <TodoList
             selectedDate={selectedDate}
-            title="Todos for Planned Date"
-            compact
+            title={`Todos for ${isSelectedToday ? 'Today' : selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
             showDateBadge={false}
-          />
-        )}
-      </div>
-    </section>
+         />
+      </section>
+      
+      <style dangerouslySetInnerHTML={{__html: `
+        .routine-form-grid { grid-template-columns: minmax(0, 1fr) auto auto auto; }
+        @media (max-width: 600px) {
+           .routine-form-grid { grid-template-columns: 1fr; }
+           .routine-form-grid input[type="text"] { border-bottom: 1px solid var(--surface-border) !important; margin-bottom: 0.25rem; }
+           .routine-form-grid > div { border-left: none !important; padding: 0.25rem 0 !important; }
+           .routine-form-grid button[type="submit"] { width: 100% !important; margin-top: 0.25rem; }
+        }
+        .hover-bg-surface:hover { background: var(--surface) !important; color: var(--text-primary) !important; }
+        .hover-text-primary:hover { color: var(--accent-primary) !important; }
+        .hover-text-red:hover { color: #ff5577 !important; }
+        input[type="time"]::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 0.6; filter: invert(0.8); }
+      `}} />
+    </div>
   )
 }
