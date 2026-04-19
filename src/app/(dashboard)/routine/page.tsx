@@ -13,7 +13,7 @@ export default async function RoutinePage() {
         <p className="page-subtitle">Plan your days with precision</p>
       </div>
 
-      <div className="reveal-up" style={{ '--reveal-delay': '120ms' }}>
+      <div className="reveal-up" style={{ '--reveal-delay': '120ms' } as React.CSSProperties}>
         <RoutinePlanner />
       </div>
     </div>
