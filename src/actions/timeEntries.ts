@@ -199,7 +199,7 @@ export async function deleteTimeEntry(id: string) {
 
 export async function getAnalyticsData(days: number = 7) {
   const userId = await getUserId()
-  if (!userId) return { dailyData: [], categoryTotals: [], totalSeconds: 0 }
+  if (!userId) return { dailyData: [], categoryTotals: [], totalSeconds: 0, totalProductiveSeconds: 0 }
 
   const now = new Date()
   const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - days + 1)
@@ -211,25 +211,29 @@ export async function getAnalyticsData(days: number = 7) {
   })
 
   // Build daily breakdown
-  const dailyMap: Record<string, { date: string; totalSeconds: number; categories: Record<string, { name: string; color: string; seconds: number }>; entries: { description: string; seconds: number; category: string; color: string; time: string }[] }> = {}
+  const dailyMap: Record<string, { date: string; totalSeconds: number; productiveSeconds: number; categories: Record<string, { name: string; color: string; seconds: number }>; entries: { description: string; seconds: number; category: string; color: string; time: string }[] }> = {}
 
   // Pre-fill all days
   for (let i = 0; i < days; i++) {
     const d = new Date(start)
     d.setDate(start.getDate() + i)
     const key = d.toISOString().split('T')[0]
-    dailyMap[key] = { date: key, totalSeconds: 0, categories: {}, entries: [] }
+    dailyMap[key] = { date: key, totalSeconds: 0, productiveSeconds: 0, categories: {}, entries: [] }
   }
 
   let totalSeconds = 0
+  let totalProductiveSeconds = 0
   const catTotalMap: Record<string, { name: string; color: string; seconds: number }> = {}
 
   entries.forEach((entry) => {
     const dur = entry.durationSeconds || 0
+    const isProductive = entry.category?.isProductive === true
     totalSeconds += dur
+    if (isProductive) totalProductiveSeconds += dur
     const dayKey = new Date(entry.startTime).toISOString().split('T')[0]
     if (dailyMap[dayKey]) {
       dailyMap[dayKey].totalSeconds += dur
+      if (isProductive) dailyMap[dayKey].productiveSeconds += dur
       const catName = entry.category?.name || 'Uncategorized'
       const catColor = entry.category?.color || '#888888'
       const cid = entry.category?.id || '__uncategorized'
@@ -258,6 +262,7 @@ export async function getAnalyticsData(days: number = 7) {
   const dailyData = Object.values(dailyMap).map(d => ({
     date: d.date,
     totalSeconds: d.totalSeconds,
+    productiveSeconds: d.productiveSeconds,
     categories: Object.values(d.categories).sort((a, b) => b.seconds - a.seconds),
     entries: d.entries,
   }))
@@ -266,5 +271,6 @@ export async function getAnalyticsData(days: number = 7) {
     dailyData,
     categoryTotals: Object.values(catTotalMap).sort((a, b) => b.seconds - a.seconds),
     totalSeconds,
+    totalProductiveSeconds,
   }
 }

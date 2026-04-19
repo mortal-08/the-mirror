@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 import { useState, useEffect, createContext, useContext } from 'react'
@@ -79,7 +80,7 @@ export default function Sidebar() {
       >
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '0.25rem', justifyContent: isCollapsed ? 'center' : 'flex-start' }}>
-          <Orbit size={22} color="var(--accent-primary)" style={{ flexShrink: 0 }} />
+          <Image src="/icon-512.svg" alt="The Mirror" width={24} height={24} style={{ flexShrink: 0 }} />
           {!isCollapsed && <span className="sidebar-logo" style={{ fontSize: '1.5rem', marginBottom: 0 }}>The Mirror</span>}
         </div>
         {!isCollapsed && <div className="sidebar-tagline" style={{ marginBottom: '1.5rem' }}>Time Intelligence</div>}

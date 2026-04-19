@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ArrowRight, Sparkles, Orbit, Gauge, Trophy, Brain, Network, Hexagon, Terminal, Activity, ChevronRight, Quote, Moon, Sun } from 'lucide-react'
+import { ArrowRight, Sparkles, Gauge, Trophy, Brain, Network, Hexagon, Terminal, Activity, ChevronRight, Quote, Moon, Sun } from 'lucide-react'
 import { useTheme } from '@/components/ThemeProvider'
 
 /* --- IntersectionObserver Hook for Scroll Animations --- */
@@ -136,7 +136,7 @@ export default function LandingPage() {
       {/* Navigation (Optional Top Bar) */}
       <nav style={{ position: 'absolute', top: 0, width: '100%', padding: '1rem 1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 100, flexWrap: 'wrap', gap: '0.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.1rem', fontWeight: 900, letterSpacing: '0.08em' }}>
-           <Orbit size={22} color="var(--accent-primary)" />
+           <img src="/icon-512.svg" alt="The Mirror" width={22} height={22} />
            The Mirror
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>

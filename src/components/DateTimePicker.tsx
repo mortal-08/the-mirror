@@ -7,17 +7,20 @@ import { Clock, Calendar, X, Check } from 'lucide-react'
 type DateTimePickerProps = {
   isOpen: boolean
   onClose: () => void
-  onSelect: (date: Date) => void
+  onSelect: (date: Date, endDate?: Date) => void
   initialDate?: Date
   title?: string
   defaultView?: 'time' | 'date'
+  mode?: 'datetime' | 'time' | 'date'
 }
 
-export default function DateTimePicker({ isOpen, onClose, onSelect, initialDate, title = 'Select Time', defaultView = 'time' }: DateTimePickerProps) {
+export default function DateTimePicker({ isOpen, onClose, onSelect, initialDate, title = 'Select Time', defaultView = 'time', mode = 'datetime' }: DateTimePickerProps) {
   const [mounted, setMounted] = useState(false)
   
   const [selectedDate, setSelectedDate] = useState<Date>(() => initialDate || new Date())
+  const [selectedEndDate, setSelectedEndDate] = useState<Date | null>(null)
   const [timeMode, setTimeMode] = useState<'single' | 'range'>('single')
+  const [rangeTarget, setRangeTarget] = useState<'start' | 'end'>('start')
   const [view, setView] = useState<'time' | 'date'>(defaultView)
   const [calendarMonth, setCalendarMonth] = useState<Date>(() => {
     const d = initialDate ? new Date(initialDate) : new Date()
@@ -26,6 +29,8 @@ export default function DateTimePicker({ isOpen, onClose, onSelect, initialDate,
   })
   
   const timesListRef = useRef<HTMLDivElement>(null)
+  const clockRef = useRef<HTMLDivElement>(null)
+  const isDragging = useRef(false)
 
   useEffect(() => {
     setMounted(true)
@@ -34,6 +39,9 @@ export default function DateTimePicker({ isOpen, onClose, onSelect, initialDate,
   useEffect(() => {
     if (initialDate && isOpen) {
        setSelectedDate(new Date(initialDate))
+       setSelectedEndDate(null)
+       setTimeMode('single')
+       setRangeTarget('start')
        setView(defaultView)
     }
   }, [initialDate, isOpen, defaultView])
@@ -74,15 +82,67 @@ export default function DateTimePicker({ isOpen, onClose, onSelect, initialDate,
   if (!isOpen || !mounted) return null
 
   const handleSelectTime = (h: number, m: number) => {
-    const nextDate = new Date(selectedDate)
-    nextDate.setHours(h)
-    nextDate.setMinutes(m)
-    setSelectedDate(nextDate)
+    const target = timeMode === 'range' && rangeTarget === 'end' ? (selectedEndDate ? new Date(selectedEndDate) : new Date(selectedDate)) : new Date(selectedDate)
+    target.setHours(h)
+    target.setMinutes(m)
+    if (timeMode === 'range' && rangeTarget === 'end') {
+       setSelectedEndDate(target)
+    } else {
+       setSelectedDate(target)
+    }
   }
 
   const handleConfirm = () => {
-    onSelect(selectedDate)
+    if (timeMode === 'range' && selectedEndDate) {
+       onSelect(selectedDate, selectedEndDate)
+    } else {
+       onSelect(selectedDate)
+    }
     onClose()
+  }
+
+  const updateTimeFromPointer = (e: React.PointerEvent | PointerEvent) => {
+    if (!clockRef.current) return
+    const activeDate = timeMode === 'range' && rangeTarget === 'end' ? (selectedEndDate || selectedDate) : selectedDate
+    const rect = clockRef.current.getBoundingClientRect()
+    const cx = rect.left + rect.width / 2
+    const cy = rect.top + rect.height / 2
+    const dx = e.clientX - cx
+    const dy = e.clientY - cy
+    let angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90
+    if (angle < 0) angle += 360
+
+    const totalMinutes = Math.round((angle / 360) * 12 * 60)
+    let newH = Math.floor(totalMinutes / 60)
+    const newM = Math.round((totalMinutes % 60) / 5) * 5
+    
+    let finalH = newH
+    if (newM === 60) finalH += 1
+    
+    // preserve AM/PM
+    const isPM = activeDate.getHours() >= 12
+    if (isPM && finalH < 12) finalH += 12
+    if (!isPM && finalH >= 12) finalH -= 12
+    
+    const nextDate = new Date(activeDate)
+    nextDate.setHours(finalH)
+    nextDate.setMinutes(newM === 60 ? 0 : newM)
+    
+    if (timeMode === 'range' && rangeTarget === 'end') setSelectedEndDate(nextDate)
+    else setSelectedDate(nextDate)
+  }
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    isDragging.current = true
+    updateTimeFromPointer(e)
+    ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+  }
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (isDragging.current) updateTimeFromPointer(e)
+  }
+  const handlePointerUp = (e: React.PointerEvent) => {
+    isDragging.current = false
+    ;(e.target as HTMLElement).releasePointerCapture(e.pointerId)
   }
 
   // Calendar Logic
@@ -100,12 +160,19 @@ export default function DateTimePicker({ isOpen, onClose, onSelect, initialDate,
     nextDate.setMonth(calendarMonth.getMonth())
     nextDate.setDate(day)
     setSelectedDate(nextDate)
-    setView('time')
+    
+    if (mode === 'date') {
+      onSelect(nextDate)
+      onClose()
+    } else {
+      setView('time')
+    }
   }
 
   // Analog Clock Math
-  const hr = selectedDate.getHours()
-  const mn = selectedDate.getMinutes()
+  const activeDate = timeMode === 'range' && rangeTarget === 'end' ? (selectedEndDate || selectedDate) : selectedDate
+  const hr = activeDate.getHours()
+  const mn = activeDate.getMinutes()
   
   const hourDeg = (hr % 12) * 30 + (mn / 60) * 30
   const minDeg = mn * 6
@@ -131,30 +198,51 @@ export default function DateTimePicker({ isOpen, onClose, onSelect, initialDate,
         {/* Time Settings Container */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1.5rem' }}>
           
-          {view === 'time' && (
+          {view === 'time' && mode !== 'date' && (
             <>
               {/* Segmented control */}
               <div style={{ display: 'flex', background: 'var(--surface)', borderRadius: '12px', padding: '0.25rem' }}>
                 <button
-                   onClick={() => setTimeMode('single')}
+                   onClick={() => { setTimeMode('single'); setRangeTarget('start') }}
                    style={{ flex: 1, padding: '0.5rem', fontSize: '0.8rem', fontWeight: 600, borderRadius: '8px', border: 'none', background: timeMode === 'single' ? 'var(--bg-primary)' : 'transparent', color: timeMode === 'single' ? 'var(--text-primary)' : 'var(--text-tertiary)', cursor: 'pointer', transition: 'all 0.2s', boxShadow: timeMode === 'single' ? '0 2px 8px rgba(0,0,0,0.1)' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
                 >
                   {timeMode === 'single' && <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent-primary)' }} />} Single time
                 </button>
                 <button
-                   onClick={() => setTimeMode('range')}
-                   style={{ flex: 1, padding: '0.5rem', fontSize: '0.8rem', fontWeight: 600, borderRadius: '8px', border: 'none', background: timeMode === 'range' ? 'var(--bg-primary)' : 'transparent', color: timeMode === 'range' ? 'var(--text-primary)' : 'var(--text-tertiary)', cursor: 'pointer', transition: 'all 0.2s', boxShadow: timeMode === 'range' ? '0 2px 8px rgba(0,0,0,0.1)' : 'none' }}
+                   onClick={() => { setTimeMode('range'); if (!selectedEndDate) setSelectedEndDate(new Date(selectedDate.getTime() + 3600000)); }}
+                   style={{ flex: 1, padding: '0.5rem', fontSize: '0.8rem', fontWeight: 600, borderRadius: '8px', border: 'none', background: timeMode === 'range' ? 'var(--bg-primary)' : 'transparent', color: timeMode === 'range' ? 'var(--text-primary)' : 'var(--text-tertiary)', cursor: 'pointer', transition: 'all 0.2s', boxShadow: timeMode === 'range' ? '0 2px 8px rgba(0,0,0,0.1)' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
                 >
-                  Time range
+                  {timeMode === 'range' && <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent-primary)' }} />} Time range
                 </button>
               </div>
+               
+              {/* Time Range Targets */}
+              {timeMode === 'range' && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.2rem 1rem' }}>
+                  <div onClick={() => setRangeTarget('start')} style={{ cursor: 'pointer', opacity: rangeTarget === 'start' ? 1 : 0.5, borderBottom: rangeTarget === 'start' ? '2px solid var(--accent-primary)' : 'none', paddingBottom: '4px' }}>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>Start Time</div>
+                    <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>{selectedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                  </div>
+                  <div onClick={() => setRangeTarget('end')} style={{ cursor: 'pointer', opacity: rangeTarget === 'end' ? 1 : 0.5, borderBottom: rangeTarget === 'end' ? '2px solid var(--accent-primary)' : 'none', paddingBottom: '4px', textAlign: 'right' }}>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>End Time</div>
+                    <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>{(selectedEndDate || selectedDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                  </div>
+                </div>
+              )}
 
               {/* Clock & List Flex */}
               <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', height: '180px' }}>
                 
                 {/* Analog Clock */}
                 <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
-                   <div style={{ position: 'relative', width: '130px', height: '130px', borderRadius: '50%', background: 'var(--surface)', border: '1px solid var(--surface-border)', boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.2)' }}>
+                   <div 
+                      ref={clockRef}
+                      onPointerDown={handlePointerDown}
+                      onPointerMove={handlePointerMove}
+                      onPointerUp={handlePointerUp}
+                      onPointerCancel={handlePointerUp}
+                      style={{ position: 'relative', width: '130px', height: '130px', borderRadius: '50%', background: 'var(--surface)', border: '1px solid var(--surface-border)', boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.2)', touchAction: 'none', cursor: isDragging.current ? 'grabbing' : 'grab' }}
+                   >
                       {[...Array(12)].map((_, i) => (
                         <div key={i} style={{ position: 'absolute', width: '2px', height: '6px', background: 'var(--text-tertiary)', opacity: i % 3 === 0 ? 0.8 : 0.3, top: 6, left: 'calc(50% - 1px)', transformOrigin: 'calc(50% + 1px) 59px', transform: `rotate(${i * 30}deg)` }} />
                       ))}

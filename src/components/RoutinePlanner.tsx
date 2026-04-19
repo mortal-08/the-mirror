@@ -80,7 +80,7 @@ export default function RoutinePlanner() {
   const [endTime, setEndTime] = useState('10:30')
 
   const [pickerOpen, setPickerOpen] = useState(false)
-  const [pickerTarget, setPickerTarget] = useState<'createStart' | 'createEnd' | 'editStart' | 'editEnd' | null>(null)
+  const [pickerTarget, setPickerTarget] = useState<'createStart' | 'createEnd' | 'editStart' | 'editEnd' | 'routineDate' | null>(null)
   const [pickerInitialDate, setPickerInitialDate] = useState<Date>(new Date())
 
   const openPicker = (target: 'createStart' | 'createEnd' | 'editStart' | 'editEnd', currentStr: string) => {
@@ -99,6 +99,11 @@ export default function RoutinePlanner() {
     else if (pickerTarget === 'createEnd') setEndTime(timeStr)
     else if (pickerTarget === 'editStart') setEditStartTime(timeStr)
     else if (pickerTarget === 'editEnd') setEditEndTime(timeStr)
+    else if (pickerTarget === 'routineDate') {
+      const nextDay = new Date(selectedDate)
+      nextDay.setFullYear(date.getFullYear(), date.getMonth(), date.getDate())
+      setSelectedDate(normalizeToLocalDay(nextDay))
+    }
   }
 
   const selectedDateKey = useMemo(() => dateKey(selectedDate), [selectedDate])
@@ -270,7 +275,11 @@ export default function RoutinePlanner() {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'var(--surface-active)', padding: '0.3rem', borderRadius: '12px', border: '1px solid var(--surface-border)' }}>
             <button onClick={() => changeDate(-1)} style={{ padding: '0.4rem', borderRadius: '8px', border: 'none', background: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer' }} className="hover-bg-surface"><ChevronLeft size={16} /></button>
-            <div style={{ padding: '0 0.75rem', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', minWidth: '130px', textAlign: 'center' }}>
+            <div 
+              onClick={() => { setPickerTarget('routineDate'); setPickerInitialDate(selectedDate); setPickerOpen(true); }}
+              style={{ padding: '0 0.75rem', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', minWidth: '130px', textAlign: 'center', cursor: 'pointer' }} 
+              className="hover-bg-surface"
+            >
               {selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
               {isSelectedToday && <span style={{ marginLeft: '6px', color: 'var(--accent-primary)', fontSize: '0.65rem', textTransform: 'uppercase' }}>(Today)</span>}
             </div>
@@ -403,6 +412,7 @@ export default function RoutinePlanner() {
          onClose={() => setPickerOpen(false)}
          onSelect={handleTimeSelect}
          initialDate={pickerInitialDate}
+         mode={pickerTarget === 'routineDate' ? 'date' : 'datetime'}
       />
       
       <style dangerouslySetInnerHTML={{__html: `

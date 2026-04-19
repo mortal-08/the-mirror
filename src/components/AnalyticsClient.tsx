@@ -8,8 +8,8 @@ type DayData = { date: string; totalSeconds: number; categories: { name: string;
 type CatTotal = { name: string; color: string; seconds: number }
 
 export default function AnalyticsClient({ data7, data30, categories }: {
-  data7: { dailyData: DayData[]; categoryTotals: CatTotal[]; totalSeconds: number }
-  data30: { dailyData: DayData[]; categoryTotals: CatTotal[]; totalSeconds: number }
+  data7: { dailyData: DayData[]; categoryTotals: CatTotal[]; totalSeconds: number; totalProductiveSeconds: number }
+  data30: { dailyData: DayData[]; categoryTotals: CatTotal[]; totalSeconds: number; totalProductiveSeconds: number }
   categories: any[]
 }) {
   const [range, setRange] = useState<'7' | '30'>('7')
@@ -28,9 +28,9 @@ export default function AnalyticsClient({ data7, data30, categories }: {
     return `${sec}s`
   }
 
-  const avgSeconds = data.totalSeconds / data.dailyData.length || 0
-  const bestDay = data.dailyData.reduce((best, d) => d.totalSeconds > best.totalSeconds ? d : best, data.dailyData[0])
-  const activeDays = data.dailyData.filter(d => d.totalSeconds > 0).length
+  const avgSeconds = data.totalProductiveSeconds / data.dailyData.length || 0
+  const bestDay = data.dailyData.reduce((best, d) => (d as any).productiveSeconds > (best as any).productiveSeconds ? d : best, data.dailyData[0])
+  const activeDays = data.dailyData.filter(d => (d as any).productiveSeconds > 0).length
 
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr + 'T12:00:00')
@@ -60,22 +60,22 @@ export default function AnalyticsClient({ data7, data30, categories }: {
         </div>
       </div>
 
-      {/* Summary Stats */}
+      {/* Summary Stats (Productive Only) */}
       <div className="grid-3 reveal-up" style={{ '--reveal-delay': '60ms' } as React.CSSProperties}>
         <div className="stat-card glass">
-          <div className="stat-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Clock size={14} /> Total</div>
-          <div className="stat-value">{fmtHours(data.totalSeconds)}h</div>
+          <div className="stat-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Clock size={14} /> Productive Total</div>
+          <div className="stat-value">{fmtHours(data.totalProductiveSeconds)}h</div>
           <div className="text-xs text-secondary">in {range} days</div>
         </div>
         <div className="stat-card glass">
-          <div className="stat-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><TrendingUp size={14} /> Daily Avg</div>
+          <div className="stat-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><TrendingUp size={14} /> Productive Avg</div>
           <div className="stat-value">{fmtHours(avgSeconds)}h</div>
           <div className="text-xs text-secondary">{activeDays} active days</div>
         </div>
         <div className="stat-card glass">
-          <div className="stat-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Calendar size={14} /> Best Day</div>
-          <div className="stat-value">{bestDay ? fmtHours(bestDay.totalSeconds) : '0'}h</div>
-          <div className="text-xs text-secondary">{bestDay ? formatDate(bestDay.date) : '-'}</div>
+          <div className="stat-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Calendar size={14} /> Best Prod. Day</div>
+          <div className="stat-value">{bestDay ? fmtHours((bestDay as any).productiveSeconds) : '0'}h</div>
+          <div className="text-xs text-secondary">{bestDay && (bestDay as any).productiveSeconds > 0 ? formatDate(bestDay.date) : '-'}</div>
         </div>
       </div>
 
@@ -86,7 +86,6 @@ export default function AnalyticsClient({ data7, data30, categories }: {
         </h3>
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: range === '30' ? '2px' : '6px', height: 180, padding: '0 0.25rem' }}>
           {data.dailyData.map((day) => {
-            const pct = (day.totalSeconds / maxDaySeconds) * 100
             const isToday = day.date === new Date().toISOString().split('T')[0]
             return (
               <div key={day.date} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', minWidth: 0 }}>
@@ -94,13 +93,22 @@ export default function AnalyticsClient({ data7, data30, categories }: {
                   {day.totalSeconds > 0 ? fmtHours(day.totalSeconds) : ''}
                 </span>
                 <div style={{
-                  width: '100%', minHeight: 4, height: `${Math.max(pct, 2)}%`,
-                  background: isToday ? 'var(--accent-primary)' : 'var(--accent-gradient)',
-                  borderRadius: '4px 4px 2px 2px', transition: 'height 0.5s ease',
-                  opacity: day.totalSeconds === 0 ? 0.15 : 1,
-                  boxShadow: isToday ? '0 0 10px var(--accent-primary)' : 'none',
-                }} />
-                <span style={{ fontSize: '0.55rem', color: isToday ? 'var(--accent-primary)' : 'var(--text-tertiary)', fontWeight: isToday ? 700 : 400 }}>
+                  width: '100%', minHeight: 4, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
+                  borderRadius: '4px 4px 2px 2px', overflow: 'hidden',
+                  background: day.totalSeconds === 0 ? 'var(--surface)' : 'transparent',
+                  opacity: day.totalSeconds === 0 ? 0.3 : 1,
+                  boxShadow: isToday && day.totalSeconds > 0 ? '0 0 10px rgba(255,255,255,0.1)' : 'none',
+                }}>
+                  {day.categories.map((cat, idx) => (
+                    <div key={idx} style={{
+                      width: '100%',
+                      height: `${(cat.seconds / maxDaySeconds) * 100}%`,
+                      background: cat.color,
+                      minHeight: cat.seconds > 0 ? '2px' : '0'
+                    }} title={`${cat.name}: ${fmtHours(cat.seconds)}h`} />
+                  ))}
+                </div>
+                <span style={{ fontSize: '0.55rem', color: isToday ? 'var(--text-primary)' : 'var(--text-tertiary)', fontWeight: isToday ? 700 : 400 }}>
                   {range === '7' ? formatDay(day.date) : ''}
                 </span>
               </div>

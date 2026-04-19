@@ -285,7 +285,7 @@ export default function TodoList({
 
                         <span style={{
                            flex: 1, fontSize: '0.95rem',
-                           color: todo.isCompleted ? 'var(--text-tertiary)' : 'var(--text-primary)',
+                           color: todo.isCompleted ? 'var(--text-secondary)' : 'var(--text-primary)',
                            textDecoration: todo.isCompleted ? 'line-through' : 'none'
                         }}>
                            {todo.task}
@@ -298,7 +298,7 @@ export default function TodoList({
                            style={{
                               background: 'transparent', border: 'none',
                               color: 'var(--text-tertiary)', cursor: 'pointer',
-                              padding: '4px', display: 'flex', opacity: 0.6
+                              padding: '4px', display: 'flex', opacity: 1
                            }}
                            className="hover-text-red"
                         >

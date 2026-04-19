@@ -243,6 +243,7 @@ export default function ManualEntryForm({ categories }: { categories: any[] }) {
          onSelect={(d) => setDate(d.toISOString().split('T')[0])}
          initialDate={new Date(date)}
          defaultView="date"
+         mode="date"
          title="Select Date"
       />
     </div>

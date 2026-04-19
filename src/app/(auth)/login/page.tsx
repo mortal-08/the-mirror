@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { signIn } from 'next-auth/react'
 import Link from 'next/link'
-import { LogIn, Eye, EyeOff, Mail, Lock, Orbit, ArrowRight, Moon, Sun } from 'lucide-react'
+import { LogIn, Eye, EyeOff, Mail, Lock, ArrowRight, Moon, Sun } from 'lucide-react'
 import { useTheme } from '@/components/ThemeProvider'
 
 export default function LoginPage() {
@@ -61,7 +61,7 @@ export default function LoginPage() {
 
         <div className="auth-form-wrapper">
           <Link href="/landing" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)', marginBottom: '3rem', fontSize: '0.9rem', fontWeight: 600, textDecoration: 'none' }}>
-             <Orbit size={20} color="var(--accent-primary)" />
+             <img src="/icon-512.svg" alt="The Mirror" width={20} height={20} />
              Back to Home
           </Link>
 
