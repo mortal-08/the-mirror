@@ -1,12 +1,25 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { createImportantDate, deleteImportantDate } from '@/actions/importantDates'
+import { createImportantDate, deleteImportantDate, updateImportantDate } from '@/actions/importantDates'
 import { useToast } from '@/components/ToastProvider'
-import { CalendarCheck, Plus, Trash2, Clock, AlertTriangle, Flame, X, ChevronLeft, ChevronRight, Check } from 'lucide-react'
+import { CalendarCheck, Plus, Trash2, Clock, AlertTriangle, Flame, X, ChevronLeft, ChevronRight, Check, Pencil } from 'lucide-react'
 import DateTimePicker from '@/components/DateTimePicker'
 
 const COLORS = ['#f59e0b', '#ef4444', '#7c3aed', '#2563eb', '#06b6d4', '#10b981', '#ec4899', '#f97316']
+const UTC_TIME_FORMATTER = new Intl.DateTimeFormat('en-US', {
+  hour: 'numeric',
+  minute: '2-digit',
+  timeZone: 'UTC',
+})
+
+type ImportantDateItem = {
+  id: string
+  title: string
+  date: string | Date
+  description?: string | null
+  color?: string | null
+}
 
 function toLocalDateKey(date: Date): string {
   const y = date.getFullYear()
@@ -15,9 +28,24 @@ function toLocalDateKey(date: Date): string {
   return `${y}-${m}-${d}`
 }
 
+function toUTCDateKey(date: Date): string {
+  const y = date.getUTCFullYear()
+  const m = String(date.getUTCMonth() + 1).padStart(2, '0')
+  const d = String(date.getUTCDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
 function extractDateKey(value: string | Date): string {
-  if (value instanceof Date) return toLocalDateKey(value)
-  return String(value).slice(0, 10)
+  if (value instanceof Date) return toUTCDateKey(value)
+
+  const raw = String(value)
+  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) {
+    return raw.slice(0, 10)
+  }
+
+  const parsed = new Date(raw)
+  if (Number.isNaN(parsed.getTime())) return ''
+  return toUTCDateKey(parsed)
 }
 
 function getDaysUntil(dateStr: string): number {
@@ -35,22 +63,33 @@ function getUrgencyColor(daysUntil: number): string {
   return '#10b981'
 }
 
-function getUrgencyLabel(daysUntil: number): string {
-  if (daysUntil < 0) return `${Math.abs(daysUntil)}d overdue`
-  if (daysUntil === 0) return 'Today!'
-  if (daysUntil === 1) return 'Tomorrow'
-  return `${daysUntil} days`
+function extractTimeStr(value: string | Date): string | null {
+  if (!value) return null
+
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return null
+
+  const hUTC = d.getUTCHours()
+  const mUTC = d.getUTCMinutes()
+
+  if (hUTC === 0 && mUTC === 0) return null
+
+  return UTC_TIME_FORMATTER.format(d)
 }
 
-function extractTimeStr(value: string | Date): string | null {
-  if (!value) return null;
-  const d = new Date(value);
-  const hUTC = d.getUTCHours();
-  const mUTC = d.getUTCMinutes();
-  
-  if (hUTC === 0 && mUTC === 0) return null;
-  
-  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+function extractEditableTime(value: string | Date): string {
+  if (!value) return ''
+
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return ''
+
+  const hUTC = d.getUTCHours()
+  const mUTC = d.getUTCMinutes()
+  if (hUTC === 0 && mUTC === 0) return ''
+
+  const hh = String(hUTC).padStart(2, '0')
+  const mm = String(mUTC).padStart(2, '0')
+  return `${hh}:${mm}`
 }
 
 function EliteCalendarModal({ isOpen, onClose, selectedDate, onSelect }: { isOpen: boolean, onClose: () => void, selectedDate: string, onSelect: (date: string) => void }) {
@@ -137,9 +176,10 @@ function EliteCalendarModal({ isOpen, onClose, selectedDate, onSelect }: { isOpe
   )
 }
 
-export default function ImportantDatesClient({ initialDates }: { initialDates: any[] }) {
+export default function ImportantDatesClient({ initialDates }: { initialDates: ImportantDateItem[] }) {
   const { toast } = useToast()
-  const [dates, setDates] = useState<any[]>(initialDates)
+  const [dates, setDates] = useState<ImportantDateItem[]>(initialDates)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [title, setTitle] = useState('')
   const [date, setDate] = useState('')
   const [time, setTime] = useState('')
@@ -147,6 +187,7 @@ export default function ImportantDatesClient({ initialDates }: { initialDates: a
   const [color, setColor] = useState('#f59e0b')
   const [isAdding, setIsAdding] = useState(false)
   const [isCalendarOpen, setIsCalendarOpen] = useState(false)
+  const [calendarOpenKey, setCalendarOpenKey] = useState(0)
   const [isTimePickerOpen, setIsTimePickerOpen] = useState(false)
 
   const sortedDates = useMemo(() => {
@@ -160,36 +201,68 @@ export default function ImportantDatesClient({ initialDates }: { initialDates: a
   const upcomingDates = sortedDates.filter(d => getDaysUntil(extractDateKey(d.date)) >= 0)
   const pastDates = sortedDates.filter(d => getDaysUntil(extractDateKey(d.date)) < 0)
 
-  const handleAdd = async () => {
+  const resetForm = () => {
+    setEditingId(null)
+    setTitle('')
+    setDate('')
+    setTime('')
+    setDescription('')
+    setColor('#f59e0b')
+  }
+
+  const handleSave = async () => {
     if (!title.trim() || !date) {
       toast('Title and date are required.', 'error')
       return
     }
+
     setIsAdding(true)
-    try {
-      const parsedTime = time || '00:00';
-      const created = await createImportantDate({
-        title: title.trim(),
-        date: time ? `${date}T${time}:00` : date,
-        description: description.trim() || undefined,
-        color,
-      })
-      setDates(prev => [...prev, created])
-      setTitle('')
-      setDate('')
-      setTime('')
-      setDescription('')
-      toast('Important date added! 📅', 'success')
-    } catch {
-      toast('Failed to add date.', 'error')
+
+    const payload = {
+      title: title.trim(),
+      date: time ? `${date}T${time}:00` : date,
+      description: description.trim() || undefined,
+      color,
     }
-    setIsAdding(false)
+
+    try {
+      if (editingId) {
+        const updated = await updateImportantDate(editingId, payload)
+        setDates(prev => prev.map(d => (d.id === editingId ? updated : d)))
+        toast('Important date updated.', 'success')
+      } else {
+        const created = await createImportantDate(payload)
+        setDates(prev => [...prev, created])
+        toast('Important date added! 📅', 'success')
+      }
+
+      resetForm()
+    } catch {
+      toast(editingId ? 'Failed to update date.' : 'Failed to add date.', 'error')
+    } finally {
+      setIsAdding(false)
+    }
   }
 
   const handleTimeSelect = (selectedDateObj: Date) => {
     const hh = String(selectedDateObj.getHours()).padStart(2, '0')
     const mm = String(selectedDateObj.getMinutes()).padStart(2, '0')
     setTime(`${hh}:${mm}`)
+  }
+
+  const openCalendar = () => {
+    setCalendarOpenKey(prev => prev + 1)
+    setIsCalendarOpen(true)
+  }
+
+  const handleEdit = (item: ImportantDateItem) => {
+    setEditingId(item.id)
+    setTitle(item.title || '')
+    setDate(extractDateKey(item.date))
+    setTime(extractEditableTime(item.date))
+    setDescription(item.description || '')
+    setColor(item.color || '#f59e0b')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const handleDelete = async (id: string) => {
@@ -220,14 +293,14 @@ export default function ImportantDatesClient({ initialDates }: { initialDates: a
       {/* Add New Date */}
       <div className="glass reveal-up" style={{ '--reveal-delay': '80ms', padding: '2rem' } as React.CSSProperties}>
         <h3 style={{ margin: 0, marginBottom: '1.25rem', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Plus size={16} /> Add New Date
+          {editingId ? <Pencil size={16} /> : <Plus size={16} />} {editingId ? 'Edit Event' : 'Add New Date'}
         </h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
             <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Event title (e.g., Final Exam)" style={{ flex: 2, minWidth: '180px' }} />
             <button 
               type="button"
-              onClick={() => setIsCalendarOpen(true)}
+              onClick={openCalendar}
               style={{ flex: 1, minWidth: '140px', padding: '1.2rem 1.4rem', background: 'var(--surface)', border: '1px solid var(--surface-border)', borderRadius: 'var(--radius-md)', color: date ? 'var(--text-primary)' : 'var(--text-secondary)', textAlign: 'left', fontFamily: 'var(--font-sans)', fontSize: '0.95rem', cursor: 'pointer' }}
             >
               {date ? new Date(date + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'Select Date...'}
@@ -253,9 +326,16 @@ export default function ImportantDatesClient({ initialDates }: { initialDates: a
                 }} />
               ))}
             </div>
-            <button className="btn-primary" onClick={handleAdd} disabled={isAdding} style={{ marginLeft: 'auto', padding: '0.75rem 1.5rem' }}>
-              <Plus size={18} /> {isAdding ? 'Adding...' : 'Add Event'}
-            </button>
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
+              {editingId && (
+                <button type="button" onClick={resetForm} style={{ padding: '0.75rem 1rem', borderRadius: '10px', background: 'transparent', border: '1px solid var(--surface-border)', color: 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600 }}>
+                  Cancel
+                </button>
+              )}
+              <button className="btn-primary" onClick={handleSave} disabled={isAdding} style={{ padding: '0.75rem 1.5rem' }}>
+                {editingId ? <Pencil size={16} /> : <Plus size={18} />} {isAdding ? (editingId ? 'Saving...' : 'Adding...') : (editingId ? 'Save Changes' : 'Add Event')}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -276,7 +356,6 @@ export default function ImportantDatesClient({ initialDates }: { initialDates: a
               const dateKey = extractDateKey(item.date)
               const daysUntil = getDaysUntil(dateKey)
               const urgencyColor = getUrgencyColor(daysUntil)
-              const urgencyLabel = getUrgencyLabel(daysUntil)
 
               return (
                 <div key={item.id} style={{
@@ -321,9 +400,14 @@ export default function ImportantDatesClient({ initialDates }: { initialDates: a
                       {daysUntil === 0 ? 'TODAY' : daysUntil === 1 ? 'DAY' : 'DAYS'}
                     </span>
                   </div>
-                  <button onClick={() => handleDelete(item.id)} style={{ color: '#ff5577', background: 'none', border: 'none', cursor: 'pointer', padding: '0.4rem', flexShrink: 0, borderRadius: '8px', transition: 'background 0.2s' }}>
-                    <Trash2 size={16} />
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                    <button onClick={() => handleEdit(item)} style={{ color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer', padding: '0.4rem', flexShrink: 0, borderRadius: '8px', transition: 'background 0.2s' }}>
+                      <Pencil size={16} />
+                    </button>
+                    <button onClick={() => handleDelete(item.id)} style={{ color: '#ff5577', background: 'none', border: 'none', cursor: 'pointer', padding: '0.4rem', flexShrink: 0, borderRadius: '8px', transition: 'background 0.2s' }}>
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </div>
               )
             })}
@@ -348,9 +432,14 @@ export default function ImportantDatesClient({ initialDates }: { initialDates: a
                   <div style={{ width: 6, height: 6, borderRadius: '50%', background: item.color || 'var(--text-tertiary)', flexShrink: 0 }} />
                   <span style={{ flex: 1, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{item.title}</span>
                   <span style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>{formatDate(dateKey)}</span>
-                  <button onClick={() => handleDelete(item.id)} style={{ color: '#ff5577', background: 'none', border: 'none', cursor: 'pointer', padding: '0.3rem' }}>
-                    <Trash2 size={14} />
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                    <button onClick={() => handleEdit(item)} style={{ color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer', padding: '0.3rem' }}>
+                      <Pencil size={14} />
+                    </button>
+                    <button onClick={() => handleDelete(item.id)} style={{ color: '#ff5577', background: 'none', border: 'none', cursor: 'pointer', padding: '0.3rem' }}>
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </div>
               )
             })}
@@ -359,6 +448,7 @@ export default function ImportantDatesClient({ initialDates }: { initialDates: a
       )}
       
       <EliteCalendarModal 
+        key={calendarOpenKey}
         isOpen={isCalendarOpen} 
         onClose={() => setIsCalendarOpen(false)} 
         selectedDate={date} 

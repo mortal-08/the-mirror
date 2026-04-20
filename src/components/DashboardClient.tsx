@@ -84,6 +84,12 @@ const NAV_ORBS = [
   { href: '/settings', label: 'Settings', icon: Settings, color: '#10b981' },
 ]
 
+const UTC_TIME_FORMATTER = new Intl.DateTimeFormat('en-US', {
+  hour: 'numeric',
+  minute: '2-digit',
+  timeZone: 'UTC',
+})
+
 function getUrgencyColor(daysUntil: number): string {
   if (daysUntil <= 0) return '#ef4444'
   if (daysUntil <= 3) return '#f97316'
@@ -91,14 +97,26 @@ function getUrgencyColor(daysUntil: number): string {
   return '#10b981'
 }
 
+function toUTCDateKey(date: Date): string {
+  const y = date.getUTCFullYear()
+  const m = String(date.getUTCMonth() + 1).padStart(2, '0')
+  const d = String(date.getUTCDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
 function extractDateKey(value: string | Date): string {
   if (value instanceof Date) {
-    const y = value.getFullYear()
-    const m = String(value.getMonth() + 1).padStart(2, '0')
-    const d = String(value.getDate()).padStart(2, '0')
-    return `${y}-${m}-${d}`
+    return toUTCDateKey(value)
   }
-  return String(value).slice(0, 10)
+
+  const raw = String(value)
+  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) {
+    return raw.slice(0, 10)
+  }
+
+  const parsed = new Date(raw)
+  if (Number.isNaN(parsed.getTime())) return ''
+  return toUTCDateKey(parsed)
 }
 
 function getDaysUntil(dateStr: string, todayStr: string): number {
@@ -108,15 +126,17 @@ function getDaysUntil(dateStr: string, todayStr: string): number {
 }
 
 function extractTimeStr(value: string | Date): string | null {
-  if (!value) return null;
-  const d = new Date(value);
-  const hUTC = d.getUTCHours();
-  const mUTC = d.getUTCMinutes();
-  
-  // If it's precisely midnight UTC, it represents a legacy @db.Date without time.
-  if (hUTC === 0 && mUTC === 0) return null;
-  
-  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  if (!value) return null
+
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return null
+
+  const hUTC = d.getUTCHours()
+  const mUTC = d.getUTCMinutes()
+
+  if (hUTC === 0 && mUTC === 0) return null
+
+  return UTC_TIME_FORMATTER.format(d)
 }
 
 export default function DashboardClient({ stats, categories, recentEntries, todayJournal, todayBlocks = [], upcomingDates = [] }: {
