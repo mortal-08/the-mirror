@@ -318,7 +318,7 @@ body::after {
   100% { transform: translate(-50%, -50%) rotateX(65deg) rotate(360deg); }
 }
 
-a { color: var(--accent-primary); text-decoration: none; transition: all var(--transition-base); }
+a { color: var(--accent-primary); text-decoration: none; transition: color var(--transition-base), text-shadow var(--transition-base); }
 a:hover { color: var(--text-primary); text-shadow: 0 0 10px var(--accent-primary); }
 [data-theme='light'] a:hover { text-shadow: none; }
 
@@ -336,7 +336,7 @@ h1 { font-size: 3rem; } h2 { font-size: 2rem; } h3 { font-size: 1.4rem; }
   box-shadow: var(--shadow-md), var(--shadow-inner);
   position: relative;
   overflow: hidden;
-  transition: all var(--transition-base);
+  transition: background var(--transition-base), border-color var(--transition-base), box-shadow var(--transition-base), transform var(--transition-base);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
@@ -373,7 +373,7 @@ h1 { font-size: 3rem; } h2 { font-size: 2rem; } h3 { font-size: 1.4rem; }
    ELITE CONTROLS & BUTTONS
    ═══════════════════════════════════════════════ */
 button, .btn {
-  font-family: var(--font-sans); cursor: pointer; border: none; background: none; transition: all var(--transition-base);
+  font-family: var(--font-sans); cursor: pointer; border: none; background: none; transition: background var(--transition-base), color var(--transition-base), box-shadow var(--transition-base), transform var(--transition-base), border-color var(--transition-base);
   position: relative; overflow: hidden; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
 }
 
@@ -433,7 +433,7 @@ button, .btn {
   width: 100%; padding: 1.2rem 1.4rem; background: var(--surface);
   border: 1px solid var(--surface-border); border-radius: var(--radius-md);
   color: var(--text-primary); font-family: var(--font-sans); font-size: 1rem;
-  transition: all var(--transition-base); outline: none; box-shadow: var(--shadow-inner);
+  transition: background var(--transition-base), border-color var(--transition-base), box-shadow var(--transition-base), color var(--transition-base); outline: none; box-shadow: var(--shadow-inner);
 }
 
 .input:focus, input:focus, select:focus, textarea:focus {
@@ -474,7 +474,7 @@ label { font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); lette
 
 .sidebar-link {
   display: flex; align-items: center; gap: 1rem; padding: 1rem; border-radius: var(--radius-md);
-  color: var(--text-tertiary); font-weight: 600; text-decoration: none; transition: all var(--transition-base);
+  color: var(--text-tertiary); font-weight: 600; text-decoration: none; transition: background var(--transition-base), color var(--transition-base), border-color var(--transition-base);
   border: 1px solid transparent; background: transparent; position: relative; overflow: hidden;
 }
 
@@ -505,7 +505,7 @@ label { font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); lette
 .stat-card {
   background: var(--bg-tertiary);
   border: 1px solid var(--surface-border); border-radius: var(--radius-xl);
-  padding: var(--space-xl); transition: all var(--transition-base);
+  padding: var(--space-xl); transition: border-color var(--transition-base), box-shadow var(--transition-base), transform var(--transition-base);
   position: relative; overflow: hidden;
 }
 

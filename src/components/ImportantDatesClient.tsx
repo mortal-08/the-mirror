@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react'
 import { createImportantDate, deleteImportantDate } from '@/actions/importantDates'
 import { useToast } from '@/components/ToastProvider'
-import { CalendarCheck, Plus, Trash2, Clock, AlertTriangle, Flame } from 'lucide-react'
+import { CalendarCheck, Plus, Trash2, Clock, AlertTriangle, Flame, X, ChevronLeft, ChevronRight, Check } from 'lucide-react'
 
 const COLORS = ['#f59e0b', '#ef4444', '#7c3aed', '#2563eb', '#06b6d4', '#10b981', '#ec4899', '#f97316']
 
@@ -41,6 +41,90 @@ function getUrgencyLabel(daysUntil: number): string {
   return `${daysUntil} days`
 }
 
+function EliteCalendarModal({ isOpen, onClose, selectedDate, onSelect }: { isOpen: boolean, onClose: () => void, selectedDate: string, onSelect: (date: string) => void }) {
+  const [currentMonth, setCurrentMonth] = useState(selectedDate ? new Date(selectedDate) : new Date());
+  const [tempDate, setTempDate] = useState(selectedDate || "");
+
+  if (!isOpen) return null;
+
+  const year = currentMonth.getFullYear();
+  const month = currentMonth.getMonth();
+  const firstDayOfMonth = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const days = [];
+  for (let i = 0; i < firstDayOfMonth; i++) days.push(null);
+  for (let i = 1; i <= daysInMonth; i++) days.push(i);
+
+  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+  const handlePrev = () => setCurrentMonth(new Date(year, month - 1, 1));
+  const handleNext = () => setCurrentMonth(new Date(year, month + 1, 1));
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }}>
+      <div className="reveal-up" style={{ background: 'var(--bg-secondary)', width: '380px', borderRadius: '24px', padding: '2rem', boxShadow: '0 20px 40px rgba(0,0,0,0.4)', border: '1px solid var(--surface-border)' }}>
+        
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '1.5rem', borderBottom: '1px solid var(--surface-border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#7c3aed', fontWeight: 600 }}>
+            <CalendarCheck size={20} />
+            <span style={{ color: 'var(--text-primary)' }}>Select Date</span>
+          </div>
+          <button onClick={onClose} style={{ color: '#7c3aed', background: 'none', border: 'none', cursor: 'pointer' }}><X size={20} /></button>
+        </div>
+
+        {/* Month Navigation */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.5rem', marginBottom: '1.5rem' }}>
+          <button style={{ color: '#7c3aed', fontWeight: 700, fontSize: '0.9rem', background: 'none', border: 'none', cursor: 'pointer' }}>Select Date</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button onClick={handlePrev} style={{ width: 32, height: 32, borderRadius: '8px', background: 'var(--surface)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-primary)', cursor: 'pointer' }}><ChevronLeft size={16} /></button>
+            <span style={{ fontWeight: 700, minWidth: '90px', textAlign: 'center' }}>{monthNames[month]} {year}</span>
+            <button onClick={handleNext} style={{ width: 32, height: 32, borderRadius: '8px', background: 'var(--surface)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-primary)', cursor: 'pointer' }}><ChevronRight size={16} /></button>
+          </div>
+        </div>
+
+        {/* Days Header */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px', marginBottom: '1rem', textAlign: 'center' }}>
+          {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => (
+            <div key={d} style={{ color: '#7c3aed', fontSize: '0.8rem', fontWeight: 700 }}>{d}</div>
+          ))}
+        </div>
+
+        {/* Days Grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px', rowGap: '12px', textAlign: 'center', marginBottom: '2rem' }}>
+          {days.map((d, i) => {
+            if (!d) return <div key={`empty-${i}`} />
+            const dString = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            const isSelected = tempDate === dString;
+            return (
+              <button 
+                key={i} 
+                onClick={() => setTempDate(dString)}
+                style={{ 
+                  height: 38, width: 38, margin: '0 auto', fontSize: '0.95rem', fontWeight: 600,
+                  borderRadius: '10px', 
+                  background: isSelected ? '#7c3aed' : 'transparent', 
+                  color: isSelected ? '#fff' : 'var(--text-primary)',
+                  border: 'none', cursor: 'pointer', transition: 'all 0.2s',
+                }}>
+                {d}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Action Button */}
+        <button 
+          onClick={() => { onSelect(tempDate); onClose(); }}
+          style={{ width: '100%', padding: '1rem', background: '#1c1c38', color: '#fff', border: 'none', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: 600, fontSize: '1rem', cursor: 'pointer', boxShadow: '0 8px 20px rgba(28, 28, 56, 0.4)' }}>
+          <Check size={18} /> Confirm Selection
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function ImportantDatesClient({ initialDates }: { initialDates: any[] }) {
   const { toast } = useToast()
   const [dates, setDates] = useState<any[]>(initialDates)
@@ -49,6 +133,7 @@ export default function ImportantDatesClient({ initialDates }: { initialDates: a
   const [description, setDescription] = useState('')
   const [color, setColor] = useState('#f59e0b')
   const [isAdding, setIsAdding] = useState(false)
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false)
 
   const sortedDates = useMemo(() => {
     return [...dates].sort((a, b) => {
@@ -118,7 +203,13 @@ export default function ImportantDatesClient({ initialDates }: { initialDates: a
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
             <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Event title (e.g., Final Exam)" style={{ flex: 2, minWidth: '180px' }} />
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ flex: 1, minWidth: '140px' }} />
+            <button 
+              type="button"
+              onClick={() => setIsCalendarOpen(true)}
+              style={{ flex: 1, minWidth: '140px', padding: '1.2rem 1.4rem', background: 'var(--surface)', border: '1px solid var(--surface-border)', borderRadius: 'var(--radius-md)', color: date ? 'var(--text-primary)' : 'var(--text-secondary)', textAlign: 'left', fontFamily: 'var(--font-sans)', fontSize: '0.95rem', cursor: 'pointer' }}
+            >
+              {date ? new Date(date + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'Select Date...'}
+            </button>
           </div>
           <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional description or notes..." />
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
@@ -228,6 +319,13 @@ export default function ImportantDatesClient({ initialDates }: { initialDates: a
           </div>
         </div>
       )}
+      
+      <EliteCalendarModal 
+        isOpen={isCalendarOpen} 
+        onClose={() => setIsCalendarOpen(false)} 
+        selectedDate={date} 
+        onSelect={setDate} 
+      />
     </div>
   )
 }

@@ -85,28 +85,24 @@ export default function SettingsClient({
   }
 
   const handleToggleCategoryTag = async (categoryId: string, tagId: string) => {
-    let nextTagIds: string[] = []
-    
+    const category = categories.find((c) => c.id === categoryId)
+    if (!category) return
+
+    const currentTagIds: string[] = (category.tags || []).map((tag: any) => tag.id)
+    const nextTagIds = currentTagIds.includes(tagId)
+      ? currentTagIds.filter((id) => id !== tagId)
+      : [...currentTagIds, tagId]
+
     setUpdatingCategoryTagIds((prev) => new Set(prev).add(categoryId))
     
-    // Use functional setState to guarantee fresh state when determining next tags
-    setCategories((prev) => {
-      const category = prev.find((c) => c.id === categoryId)
-      if (!category) return prev
-
-      const currentTagIds: string[] = (category.tags || []).map((tag: any) => tag.id)
-      nextTagIds = currentTagIds.includes(tagId)
-        ? currentTagIds.filter((id) => id !== tagId)
-        : [...currentTagIds, tagId]
-
-      return prev.map((c) => {
-        if (c.id !== categoryId) return c
-        return {
-          ...c,
-          tags: tags.filter((tag) => nextTagIds.includes(tag.id)),
-        }
-      })
-    })
+    // Optimistic Update
+    setCategories((prev) => prev.map((c) => {
+      if (c.id !== categoryId) return c
+      return {
+        ...c,
+        tags: tags.filter((tag) => nextTagIds.includes(tag.id)),
+      }
+    }))
 
     try {
       const updated = await updateCategory(categoryId, { tagIds: nextTagIds })
