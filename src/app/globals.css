@@ -915,6 +915,33 @@ label { font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); lette
 }
 
 /* ═══════════════════════════════════════════════
+   INTERACTIVE CHART STYLES
+   ═══════════════════════════════════════════════ */
+.analytics-bar-column:hover {
+  z-index: 10 !important;
+}
+
+.analytics-bar-column:hover > div:first-of-type {
+  transform: scaleY(1.01);
+  transform-origin: bottom;
+}
+
+/* Scrollbar hiding for chart areas */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Badge urgency shimmer */
+@keyframes urgencyShimmer {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Hover scaling for stat-cards */
+.hover-bg-surface-hover:hover {
+  background: var(--surface-hover) !important;
+}
+
+/* ═══════════════════════════════════════════════
    RESPONSIVE
    ═══════════════════════════════════════════════ */
 

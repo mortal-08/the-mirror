@@ -346,15 +346,49 @@ export default function SettingsClient({
             )}
           </div>
 
-          <label className="inline-flex items-center gap-2 rounded-lg border border-[var(--surface-border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--text-secondary)]">
-            <input
-              type="checkbox"
-              checked={newCatIsProductive}
-              onChange={(e) => setNewCatIsProductive(e.target.checked)}
-              className="h-4 w-4 cursor-pointer rounded border border-[var(--surface-border)] bg-[var(--surface)] accent-emerald-500"
-            />
-            Counts as Productive Time
-          </label>
+          <div
+            onClick={() => setNewCatIsProductive(!newCatIsProductive)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.6rem',
+              cursor: 'pointer',
+              padding: '0.5rem 0.75rem',
+              borderRadius: '20px',
+              background: newCatIsProductive ? 'var(--accent-primary)15' : 'var(--surface)',
+              border: `1px solid ${newCatIsProductive ? 'var(--accent-primary)30' : 'var(--surface-border)'}`,
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              userSelect: 'none',
+            }}
+          >
+            <div style={{
+              width: '34px', height: '18px',
+              background: newCatIsProductive ? 'var(--accent-primary)' : 'var(--text-tertiary)',
+              borderRadius: '10px',
+              position: 'relative',
+              transition: 'all 0.3s',
+              flexShrink: 0,
+            }}>
+              <div style={{
+                position: 'absolute',
+                top: '2px',
+                left: newCatIsProductive ? '18px' : '2px',
+                width: '14px', height: '14px',
+                borderRadius: '50%',
+                background: '#fff',
+                transition: 'left 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
+              }} />
+            </div>
+            <span style={{
+              fontSize: '0.75rem',
+              color: newCatIsProductive ? 'var(--text-primary)' : 'var(--text-secondary)',
+              fontWeight: 700,
+              letterSpacing: '0.02em',
+            }}>
+              Counts as Productive Time
+            </span>
+          </div>
         </div>
       </div>
 

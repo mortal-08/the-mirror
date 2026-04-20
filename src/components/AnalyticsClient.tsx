@@ -20,6 +20,8 @@ export default function AnalyticsClient({ data, categories }: {
   const [rangeDaily, setRangeDaily] = useState<string>(initialRange)
   const [rangeCategory, setRangeCategory] = useState<string>(initialRange)
   const [dayModalData, setDayModalData] = useState<DayData | null>(null)
+  const [hoveredBar, setHoveredBar] = useState<{ dayIdx: number; catIdx: number; x: number; y: number } | null>(null)
+  const [hoveredDonutIdx, setHoveredDonutIdx] = useState<number | null>(null)
 
   const fmtHours = (s: number) => (s / 3600).toFixed(1)
   const fmtDuration = (s: number) => {
@@ -73,7 +75,25 @@ export default function AnalyticsClient({ data, categories }: {
     return data.dailyData.slice(-sliceCount)
   }, [data, rangeDaily])
 
+  // Compute smart Y-axis max (round up to nearest 2h or 4h increment)
   const maxDaySeconds = Math.max(...dailyGraphData.map(d => d.totalSeconds), 1)
+  const yAxisMaxHours = useMemo(() => {
+    const rawMaxH = maxDaySeconds / 3600
+    if (rawMaxH <= 2) return 2
+    if (rawMaxH <= 4) return 4
+    if (rawMaxH <= 6) return 6
+    if (rawMaxH <= 8) return 8
+    if (rawMaxH <= 12) return 12
+    if (rawMaxH <= 16) return 16
+    return Math.ceil(rawMaxH / 4) * 4
+  }, [maxDaySeconds])
+  const yAxisMaxSeconds = yAxisMaxHours * 3600
+  const yAxisSteps = useMemo(() => {
+    const step = yAxisMaxHours <= 4 ? 1 : yAxisMaxHours <= 8 ? 2 : 4
+    const steps = []
+    for (let i = 0; i <= yAxisMaxHours; i += step) steps.push(i)
+    return steps
+  }, [yAxisMaxHours])
 
   // Category Breakdown Data
   const dynamicCategoryTotals = useMemo(() => {
@@ -97,8 +117,9 @@ export default function AnalyticsClient({ data, categories }: {
       onChange={(e) => onChange(e.target.value)} 
       style={{
         background: 'var(--surface-active)', border: '1px solid var(--surface-border)', 
-        color: 'var(--text-primary)', padding: '0.2rem 0.5rem', borderRadius: '6px', 
-        fontSize: '0.65rem', outline: 'none', cursor: 'pointer', fontFamily: 'inherit'
+        color: 'var(--text-primary)', padding: '0.25rem 0.6rem', borderRadius: '8px', 
+        fontSize: '0.68rem', outline: 'none', cursor: 'pointer', fontFamily: 'inherit',
+        fontWeight: 600,
       }}>
       <option value="1">Today</option>
       <option value="7">7 Days</option>
@@ -222,7 +243,7 @@ export default function AnalyticsClient({ data, categories }: {
         </div>
       </div>
 
-      {/* Bar Chart */}
+      {/* ═══ INTERACTIVE BAR CHART ═══ */}
       <div className="glass reveal-up" style={{ '--reveal-delay': '120ms', padding: '1.5rem' } as React.CSSProperties}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
           <h3 style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
@@ -232,47 +253,101 @@ export default function AnalyticsClient({ data, categories }: {
         </div>
         
         <div className="no-scrollbar" style={{ overflowX: 'auto', paddingBottom: '0.5rem', WebkitOverflowScrolling: 'touch' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', height: 260, minWidth: '100%', width: 'max-content', padding: '0 0.5rem' }}>
-            {dailyGraphData.map((day) => {
-              const isToday = day.date === todayKey
-              return (
-                <div key={day.date} onClick={() => setDayModalData(day)} style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', width: '38px', minWidth: '38px', position: 'relative', cursor: 'pointer' }} className="bar-column">
-                  <span style={{ fontSize: '0.55rem', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', opacity: 0, transition: 'opacity 0.2s', position: 'absolute', top: '-18px' }} className="bar-label">
-                    {day.totalSeconds > 0 ? fmtHours(day.totalSeconds) : ''}
-                  </span>
-                  <div style={{
-                    width: '100%', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
-                    borderRadius: '4px 4px 2px 2px', overflow: 'hidden',
-                    background: day.totalSeconds === 0 ? 'var(--surface)' : 'transparent',
-                    opacity: day.totalSeconds === 0 ? 0.3 : 1,
-                    boxShadow: isToday && day.totalSeconds > 0 ? '0 0 12px rgba(255,255,255,0.1)' : 'none',
-                    transition: 'all 0.2s'
-                  }} className="bar-bars">
-                    {day.categories.map((cat, idx) => (
-                      <div key={idx} style={{
-                        width: '100%',
-                        height: `${(cat.seconds / maxDaySeconds) * 100}%`,
-                        background: cat.color,
-                        minHeight: cat.seconds > 0 ? '3px' : '0',
-                        transition: 'height 0.8s ease'
-                      }} title={`${cat.name}: ${Math.floor(cat.seconds/3600)}h ${Math.floor((cat.seconds%3600)/60)}m`} />
-                    ))}
+          <div style={{ display: 'flex', minWidth: '100%', width: 'max-content', position: 'relative' }}>
+            {/* Y-Axis Labels */}
+            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: 260, paddingBottom: '26px', paddingRight: '0.5rem', flexShrink: 0 }}>
+              {[...yAxisSteps].reverse().map((h) => (
+                <span key={h} style={{ fontSize: '0.55rem', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', lineHeight: 1, textAlign: 'right', minWidth: '20px' }}>
+                  {h}h
+                </span>
+              ))}
+            </div>
+
+            {/* Bars */}
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '6px', height: 260, flex: 1, position: 'relative' }}>
+              {/* Grid lines */}
+              <div style={{ position: 'absolute', inset: 0, bottom: '26px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', pointerEvents: 'none', zIndex: 0 }}>
+                {yAxisSteps.map((h) => (
+                  <div key={h} style={{ width: '100%', height: '1px', background: 'var(--surface-border)', opacity: 0.4 }} />
+                ))}
+              </div>
+
+              {dailyGraphData.map((day, dayIdx) => {
+                const isToday = day.date === todayKey
+                const barHeight = day.totalSeconds > 0 ? Math.max((day.totalSeconds / yAxisMaxSeconds) * 100, 2) : 0
+                return (
+                  <div key={day.date} onClick={() => setDayModalData(day)} style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', width: '42px', minWidth: '42px', position: 'relative', cursor: 'pointer', zIndex: 1 }} className="analytics-bar-column"
+                    onMouseLeave={() => setHoveredBar(null)}>
+                    
+                    {/* Hover tooltip */}
+                    {hoveredBar?.dayIdx === dayIdx && (
+                      <div style={{
+                        position: 'absolute', bottom: `calc(${barHeight}% + 35px)`, left: '50%', transform: 'translateX(-50%)',
+                        background: 'var(--bg-primary)', border: '1px solid var(--surface-border)', borderRadius: '10px',
+                        padding: '0.5rem 0.65rem', zIndex: 100, width: 'max-content', maxWidth: '180px',
+                        boxShadow: '0 8px 30px rgba(0,0,0,0.5)', pointerEvents: 'none',
+                        animation: 'fadeIn 0.15s ease',
+                      }}>
+                        <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>{formatDate(day.date)}</div>
+                        <div style={{ fontSize: '0.65rem', fontFamily: 'var(--font-mono)', color: 'var(--accent-primary)', fontWeight: 700, marginBottom: '4px' }}>
+                          Total: {fmtDuration(day.totalSeconds)}
+                        </div>
+                        {day.categories.map((cat, ci) => (
+                          <div key={ci} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.6rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                            <span style={{ width: 5, height: 5, borderRadius: '50%', background: cat.color, flexShrink: 0 }} />
+                            <span>{cat.name}:</span>
+                            <span style={{ fontFamily: 'var(--font-mono)', color: cat.color, fontWeight: 600 }}>{fmtDuration(cat.seconds)}</span>
+                          </div>
+                        ))}
+                        {/* Tooltip arrow */}
+                        <div style={{ position: 'absolute', bottom: '-5px', left: '50%', transform: 'translateX(-50%) rotate(45deg)', width: 8, height: 8, background: 'var(--bg-primary)', borderRight: '1px solid var(--surface-border)', borderBottom: '1px solid var(--surface-border)' }} />
+                      </div>
+                    )}
+
+                    <div style={{
+                      width: '100%', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
+                      borderRadius: '6px 6px 2px 2px', overflow: 'hidden',
+                      background: day.totalSeconds === 0 ? 'var(--surface)' : 'transparent',
+                      opacity: day.totalSeconds === 0 ? 0.3 : 1,
+                      transition: 'all 0.2s',
+                    }}>
+                      {day.categories.map((cat, catIdx) => {
+                        const segmentHeight = (cat.seconds / yAxisMaxSeconds) * 100
+                        const isHovered = hoveredBar?.dayIdx === dayIdx && hoveredBar?.catIdx === catIdx
+                        return (
+                          <div key={catIdx}
+                            onMouseEnter={(e) => setHoveredBar({ dayIdx, catIdx, x: e.clientX, y: e.clientY })}
+                            style={{
+                              width: '100%',
+                              height: `${segmentHeight}%`,
+                              background: cat.color,
+                              minHeight: cat.seconds > 0 ? '3px' : '0',
+                              transition: 'height 0.8s ease, opacity 0.2s, filter 0.2s',
+                              opacity: isHovered ? 1 : 0.85,
+                              filter: isHovered ? `brightness(1.2) drop-shadow(0 0 6px ${cat.color})` : 'none',
+                            }}
+                          />
+                        )
+                      })}
+                    </div>
+                    <span style={{
+                      fontSize: '0.52rem',
+                      color: isToday ? 'var(--accent-primary)' : 'var(--text-tertiary)',
+                      fontWeight: isToday ? 700 : 400, whiteSpace: 'nowrap', marginTop: '2px',
+                      background: isToday ? 'var(--surface-active)' : 'transparent',
+                      borderRadius: '4px', padding: isToday ? '1px 4px' : '0 2px',
+                    }}>
+                      {formatDate(day.date).split(' ')[1]} {formatDate(day.date).split(' ')[0]}
+                    </span>
                   </div>
-                  <span style={{ fontSize: '0.55rem', padding: '0 2px', color: isToday ? 'var(--text-primary)' : 'var(--text-tertiary)', fontWeight: isToday ? 700 : 400, whiteSpace: 'nowrap', marginTop: '4px' }}>
-                    {formatDate(day.date).split(' ')[1]} {formatDate(day.date).split(' ')[0]}
-                  </span>
-                </div>
-              )
-            })}
+                )
+              })}
+            </div>
           </div>
         </div>
-        <style dangerouslySetInnerHTML={{__html: `
-          .bar-column:hover .bar-label { opacity: 1 !important; transform: translateY(-2px); }
-          .bar-column:hover .bar-bars { opacity: 0.8; transform: scaleY(1.02); transform-origin: bottom; }
-        `}} />
       </div>
 
-      {/* Category Breakdown */}
+      {/* ═══ INTERACTIVE CATEGORY BREAKDOWN ═══ */}
       <div className="glass reveal-up" style={{ '--reveal-delay': '180ms', padding: '1.5rem' } as React.CSSProperties}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
           <h3 style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
@@ -285,48 +360,105 @@ export default function AnalyticsClient({ data, categories }: {
           <p className="text-secondary" style={{ textAlign: 'center', padding: '2rem 0' }}>No data yet for this time range.</p>
         ) : (
           <>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '2rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-              <div style={{ position: 'relative', width: 140, height: 140 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '2.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+              {/* Interactive Donut Chart */}
+              <div style={{ position: 'relative', width: 160, height: 160 }}>
                 <svg viewBox="0 0 36 36" style={{ width: '100%', height: '100%', transform: 'rotate(-90deg)' }}>
                   {(() => {
                     let offset = 0
                     return dynamicCategoryTotals.map((cat, i) => {
                       const pct = totalCatSeconds > 0 ? (cat.seconds / totalCatSeconds) * 100 : 0
                       const dash = `${pct} ${100 - pct}`
-                      const el = <circle key={i} cx="18" cy="18" r="15.9" fill="none" stroke={cat.color} strokeWidth="3.2"
-                        strokeDasharray={dash} strokeDashoffset={-offset} strokeLinecap="round" style={{ transition: 'stroke-dasharray 0.8s ease-out, stroke-dashoffset 0.8s ease-out' }} />
+                      const isHovered = hoveredDonutIdx === i
+                      const el = (
+                        <circle key={i} cx="18" cy="18" r="15.9" fill="none"
+                          stroke={cat.color}
+                          strokeWidth={isHovered ? '4.2' : '3.2'}
+                          strokeDasharray={dash} strokeDashoffset={-offset} strokeLinecap="round"
+                          style={{
+                            transition: 'all 0.3s ease-out',
+                            filter: isHovered ? `drop-shadow(0 0 8px ${cat.color})` : 'none',
+                            opacity: hoveredDonutIdx !== null && !isHovered ? 0.35 : 1,
+                            cursor: 'pointer',
+                          }}
+                          onMouseEnter={() => setHoveredDonutIdx(i)}
+                          onMouseLeave={() => setHoveredDonutIdx(null)}
+                        />
+                      )
                       offset += pct
                       return el
                     })
                   })()}
                 </svg>
-                <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                  <span style={{ fontSize: '1.2rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{fmtHours(totalCatSeconds)}</span>
-                  <span style={{ fontSize: '0.6rem', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>hours</span>
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', transition: 'all 0.3s' }}>
+                  {hoveredDonutIdx !== null ? (
+                    <>
+                      <span style={{ fontSize: '1rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: dynamicCategoryTotals[hoveredDonutIdx]?.color }}>
+                        {fmtHours(dynamicCategoryTotals[hoveredDonutIdx]?.seconds || 0)}h
+                      </span>
+                      <span style={{ fontSize: '0.55rem', color: dynamicCategoryTotals[hoveredDonutIdx]?.color, textTransform: 'uppercase', fontWeight: 700, maxWidth: '60px', textAlign: 'center', lineHeight: 1.2 }}>
+                        {dynamicCategoryTotals[hoveredDonutIdx]?.name}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ fontSize: '1.2rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{fmtHours(totalCatSeconds)}</span>
+                      <span style={{ fontSize: '0.6rem', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>hours</span>
+                    </>
+                  )}
                 </div>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                {dynamicCategoryTotals.map((cat, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <div style={{ width: 10, height: 10, borderRadius: '3px', background: cat.color, flexShrink: 0 }} />
-                    <span style={{ fontSize: '0.8rem', fontWeight: 600, minWidth: 60 }}>{cat.name}</span>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>{fmtDuration(cat.seconds)}</span>
-                    <span style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)' }}>({totalCatSeconds > 0 ? Math.round((cat.seconds / totalCatSeconds) * 100) : 0}%)</span>
-                  </div>
-                ))}
+
+              {/* Legend */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+                {dynamicCategoryTotals.map((cat, i) => {
+                  const isHovered = hoveredDonutIdx === i
+                  const pct = totalCatSeconds > 0 ? Math.round((cat.seconds / totalCatSeconds) * 100) : 0
+                  return (
+                    <div key={i}
+                      onMouseEnter={() => setHoveredDonutIdx(i)}
+                      onMouseLeave={() => setHoveredDonutIdx(null)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer',
+                        padding: '0.35rem 0.55rem', borderRadius: '8px',
+                        background: isHovered ? `${cat.color}12` : 'transparent',
+                        border: `1px solid ${isHovered ? cat.color + '30' : 'transparent'}`,
+                        transition: 'all 0.2s',
+                        transform: isHovered ? 'translateX(4px)' : 'none',
+                      }}>
+                      <div style={{ width: 10, height: 10, borderRadius: '3px', background: cat.color, flexShrink: 0, boxShadow: isHovered ? `0 0 8px ${cat.color}` : 'none', transition: 'box-shadow 0.2s' }} />
+                      <span style={{ fontSize: '0.8rem', fontWeight: isHovered ? 700 : 600, minWidth: 60, color: isHovered ? cat.color : 'var(--text-primary)', transition: 'color 0.2s' }}>{cat.name}</span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>{fmtDuration(cat.seconds)}</span>
+                      <span style={{ fontSize: '0.65rem', color: isHovered ? cat.color : 'var(--text-tertiary)', fontWeight: isHovered ? 700 : 400, transition: 'all 0.2s' }}>({pct}%)</span>
+                    </div>
+                  )
+                })}
               </div>
             </div>
+
+            {/* Horizontal Bar Chart */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              {dynamicCategoryTotals.map((cat, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: cat.color, flexShrink: 0 }} />
-                  <span style={{ fontSize: '0.8rem', fontWeight: 600, minWidth: 70 }}>{cat.name}</span>
-                  <div style={{ flex: 1, height: 8, background: 'var(--surface-hover)', borderRadius: '4px', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${totalCatSeconds > 0 ? (cat.seconds / totalCatSeconds) * 100 : 0}%`, background: cat.color, borderRadius: '4px', transition: 'width 0.8s ease' }} />
+              {dynamicCategoryTotals.map((cat, i) => {
+                const pct = totalCatSeconds > 0 ? (cat.seconds / totalCatSeconds) * 100 : 0
+                const isHovered = hoveredDonutIdx === i
+                return (
+                  <div key={i}
+                    onMouseEnter={() => setHoveredDonutIdx(i)}
+                    onMouseLeave={() => setHoveredDonutIdx(null)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', transition: 'transform 0.2s', transform: isHovered ? 'translateX(2px)' : 'none' }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: cat.color, flexShrink: 0, boxShadow: isHovered ? `0 0 8px ${cat.color}` : 'none' }} />
+                    <span style={{ fontSize: '0.8rem', fontWeight: 600, minWidth: 70, color: isHovered ? cat.color : 'var(--text-primary)', transition: 'color 0.2s' }}>{cat.name}</span>
+                    <div style={{ flex: 1, height: isHovered ? 10 : 8, background: 'var(--surface-hover)', borderRadius: '4px', overflow: 'hidden', transition: 'height 0.2s' }}>
+                      <div style={{
+                        height: '100%', width: `${pct}%`, background: isHovered ? `linear-gradient(90deg, ${cat.color}, ${cat.color}cc)` : cat.color,
+                        borderRadius: '4px', transition: 'width 0.8s ease, background 0.3s',
+                        boxShadow: isHovered ? `0 0 10px ${cat.color}40` : 'none',
+                      }} />
+                    </div>
+                    <span style={{ fontSize: '0.7rem', fontFamily: 'var(--font-mono)', color: isHovered ? cat.color : 'var(--text-secondary)', minWidth: 45, textAlign: 'right', fontWeight: isHovered ? 700 : 400, transition: 'all 0.2s' }}>{fmtDuration(cat.seconds)}</span>
                   </div>
-                  <span style={{ fontSize: '0.7rem', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', minWidth: 45, textAlign: 'right' }}>{fmtDuration(cat.seconds)}</span>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </>
         )}
@@ -354,6 +486,12 @@ export default function AnalyticsClient({ data, categories }: {
                   <span style={{ fontSize: '0.8rem', fontWeight: 600, flex: 1 }}>
                     {formatDate(day.date)} {isToday && <span style={{ fontSize: '0.6rem', color: 'var(--accent-primary)', marginLeft: '0.3rem' }}>TODAY</span>}
                   </span>
+                  {/* Mini category indicators */}
+                  <div style={{ display: 'flex', gap: '2px' }}>
+                    {day.categories.slice(0, 4).map((cat, ci) => (
+                      <div key={ci} style={{ width: 6, height: 6, borderRadius: '50%', background: cat.color }} title={cat.name} />
+                    ))}
+                  </div>
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', fontWeight: 700, color: day.totalSeconds > 0 ? 'var(--accent-primary)' : 'var(--text-tertiary)' }}>
                     {day.totalSeconds > 0 ? fmtDuration(day.totalSeconds) : '—'}
                   </span>

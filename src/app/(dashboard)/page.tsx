@@ -4,6 +4,7 @@ import { getCategories } from '@/actions/categories'
 import { getTimeEntries, getDashboardStats } from '@/actions/timeEntries'
 import { getJournalByDate } from '@/actions/journal'
 import { getRoutineBlocks } from '@/actions/routines'
+import { getUpcomingDates } from '@/actions/importantDates'
 import DashboardClient from '@/components/DashboardClient'
 
 export default async function DashboardPage() {
@@ -21,14 +22,15 @@ export default async function DashboardPage() {
 
   const today = toDateKey(todayLocal)
 
-  const [categories, entries, stats, todayJournal, prevRoutineResult, todayRoutineResult, nextRoutineResult] = await Promise.all([
+  const [categories, entries, stats, todayJournal, prevRoutineResult, todayRoutineResult, nextRoutineResult, upcomingDates] = await Promise.all([
     getCategories(),
     getTimeEntries(),
-    getDashboardStats(),
+    getDashboardStats(today),
     getJournalByDate(today),
     getRoutineBlocks(toDateKey(previousLocal)),
     getRoutineBlocks(today),
     getRoutineBlocks(toDateKey(nextLocal)),
+    getUpcomingDates(10),
   ])
 
   const routineCandidates = [prevRoutineResult, todayRoutineResult, nextRoutineResult]
@@ -42,6 +44,7 @@ export default async function DashboardPage() {
       recentEntries={recentEntries}
       todayJournal={todayJournal}
       todayBlocks={todayBlocks}
+      upcomingDates={upcomingDates}
     />
   )
 }

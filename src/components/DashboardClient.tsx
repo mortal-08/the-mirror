@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Activity, Database, BookOpen, Clock, Timer, History, Settings, Shuffle, BarChart3, CalendarDays } from 'lucide-react'
+import { Activity, Database, BookOpen, Clock, Timer, History, Settings, Shuffle, BarChart3, CalendarDays, CalendarCheck, AlertTriangle, Flame, Sparkles } from 'lucide-react'
 import { upsertJournal } from '@/actions/journal'
 import { useToast } from '@/components/ToastProvider'
 import ManualEntryForm from '@/components/ManualEntryForm'
@@ -59,6 +59,19 @@ const QUOTES = [
   { text: "Yesterday I was clever, so I wanted to change the world. Today I am wise, so I am changing myself.", author: "Rumi" },
 ]
 
+const JOURNAL_PROMPTS = [
+  "What's the one thing you're most grateful for today?",
+  "What challenged you today, and what did you learn from it?",
+  "Describe a moment today that made you smile.",
+  "If you could redo one part of today, what would it be?",
+  "What progress did you make toward your goals?",
+  "How did you take care of yourself today?",
+  "What's something you're looking forward to tomorrow?",
+  "Describe your energy levels throughout the day.",
+  "What's one skill you practiced or improved today?",
+  "Write about a conversation that stuck with you.",
+]
+
 const MOODS = ['🔥', '😊', '😐', '😓', '💪', '🧠', '☕', '🌙']
 
 const NAV_ORBS = [
@@ -67,11 +80,35 @@ const NAV_ORBS = [
   { href: '/history', label: 'History', icon: History, color: '#06b6d4' },
   { href: '/routine', label: 'Routine', icon: CalendarDays, color: '#ec4899' },
   { href: '/analytics', label: 'Analytics', icon: BarChart3, color: '#f59e0b' },
+  { href: '/important-dates', label: 'Key Dates', icon: CalendarCheck, color: '#ef4444' },
   { href: '/settings', label: 'Settings', icon: Settings, color: '#10b981' },
 ]
 
-export default function DashboardClient({ stats, categories, recentEntries, todayJournal, todayBlocks = [] }: {
-  stats: any; categories: any[]; recentEntries: any[]; todayJournal: any; todayBlocks?: any[]
+function getUrgencyColor(daysUntil: number): string {
+  if (daysUntil <= 0) return '#ef4444'
+  if (daysUntil <= 3) return '#f97316'
+  if (daysUntil <= 7) return '#f59e0b'
+  return '#10b981'
+}
+
+function extractDateKey(value: string | Date): string {
+  if (value instanceof Date) {
+    const y = value.getFullYear()
+    const m = String(value.getMonth() + 1).padStart(2, '0')
+    const d = String(value.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
+  }
+  return String(value).slice(0, 10)
+}
+
+function getDaysUntil(dateStr: string, todayStr: string): number {
+  const target = new Date(dateStr + 'T00:00:00')
+  const today = new Date(todayStr + 'T00:00:00')
+  return Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+}
+
+export default function DashboardClient({ stats, categories, recentEntries, todayJournal, todayBlocks = [], upcomingDates = [] }: {
+  stats: any; categories: any[]; recentEntries: any[]; todayJournal: any; todayBlocks?: any[]; upcomingDates?: any[]
 }) {
   const { toast } = useToast()
   const router = useRouter()
@@ -82,6 +119,7 @@ export default function DashboardClient({ stats, categories, recentEntries, toda
   const [quoteIdx, setQuoteIdx] = useState(0)
   const [hoveredOrb, setHoveredOrb] = useState<string | null>(null)
   const [particles, setParticles] = useState<{x:number;y:number;size:number;dur:number;del:number}[]>([])
+  const [showJournalEditor, setShowJournalEditor] = useState(false)
 
   useEffect(() => {
     const interval = setInterval(() => setNow(new Date()), 1000)
@@ -113,6 +151,14 @@ export default function DashboardClient({ stats, categories, recentEntries, toda
   const weekPct = Math.min((stats.weekSeconds / stats.weeklyGoal) * 100, 100)
   const todayDashboardDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const todayKey = `${todayDashboardDate.getFullYear()}-${String(todayDashboardDate.getMonth() + 1).padStart(2, '0')}-${String(todayDashboardDate.getDate()).padStart(2, '0')}`
+
+  // Journal prompt
+  const journalPromptIdx = useMemo(() => {
+    return (now.getDate() + now.getMonth() * 31) % JOURNAL_PROMPTS.length
+  }, [now.getDate(), now.getMonth()])
+  const journalPrompt = JOURNAL_PROMPTS[journalPromptIdx]
+
+  const hasJournalToday = !!todayJournal || journalText.trim().length > 0
 
   const formatMinutes = (totalMinutes: number): string => {
     const hours = Math.floor(totalMinutes / 60)
@@ -228,7 +274,7 @@ export default function DashboardClient({ stats, categories, recentEntries, toda
         </div>
 
         {/* Navigation Orbs */}
-        <div style={{ position: 'relative', zIndex: 2, display: 'flex', gap: 'clamp(0.75rem, 3vw, 1.5rem)', flexWrap: 'wrap', justifyContent: 'center' }}>
+        <div style={{ position: 'relative', zIndex: 2, display: 'flex', gap: 'clamp(0.6rem, 2.5vw, 1.2rem)', flexWrap: 'wrap', justifyContent: 'center' }}>
           {NAV_ORBS.map((orb) => {
             const Icon = orb.icon
             const isHovered = hoveredOrb === orb.href
@@ -236,24 +282,67 @@ export default function DashboardClient({ stats, categories, recentEntries, toda
               <button key={orb.href} onClick={() => router.push(orb.href)}
                 onMouseEnter={() => setHoveredOrb(orb.href)} onMouseLeave={() => setHoveredOrb(null)}
                 className="nav-orb" style={{
-                  width: 'clamp(60px, 15vw, 85px)', height: 'clamp(60px, 15vw, 85px)', borderRadius: '50%',
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px',
+                  width: 'clamp(54px, 13vw, 78px)', height: 'clamp(54px, 13vw, 78px)', borderRadius: '50%',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '3px',
                   background: isHovered ? `${orb.color}18` : 'var(--surface)',
                   border: `2px solid ${isHovered ? orb.color : 'var(--surface-border)'}`,
                   cursor: 'pointer', transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
                   transform: isHovered ? 'scale(1.12) translateY(-6px)' : 'scale(1)',
                   boxShadow: isHovered ? `0 12px 40px ${orb.color}30` : 'var(--shadow-sm)',
-                  animation: `orbFloat 3s ease-in-out ${NAV_ORBS.indexOf(orb) * 0.4}s infinite alternate`,
+                  animation: `orbFloat 3s ease-in-out ${NAV_ORBS.indexOf(orb) * 0.35}s infinite alternate`,
                   color: isHovered ? orb.color : 'var(--text-secondary)',
                   fontFamily: 'var(--font-sans)',
                 }}>
-                <Icon size={20} />
-                <span style={{ fontSize: '0.55rem', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>{orb.label}</span>
+                <Icon size={18} />
+                <span style={{ fontSize: '0.5rem', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>{orb.label}</span>
               </button>
             )
           })}
         </div>
       </div>
+
+      {/* ═══ UPCOMING DATES REMINDER ═══ */}
+      {upcomingDates.length > 0 && (
+        <div className="glass reveal-up" style={{ '--reveal-delay': '60ms', padding: '1.25rem 1.5rem' } as React.CSSProperties}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0, fontSize: '0.8rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+              <Flame size={16} color="#f59e0b" /> Upcoming
+            </h3>
+            <button onClick={() => router.push('/important-dates')} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.65rem', color: 'var(--accent-primary)', background: 'transparent', border: 'none', cursor: 'pointer', fontWeight: 600, textTransform: 'uppercase' }}>
+              All Dates <ChevronRight size={12} />
+            </button>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', overflowX: 'auto', paddingBottom: '0.25rem' }} className="no-scrollbar">
+            {upcomingDates.slice(0, 5).map((item: any) => {
+              const dateKey = extractDateKey(item.date)
+              const daysUntil = getDaysUntil(dateKey, localTodayKey)
+              const urgencyColor = getUrgencyColor(daysUntil)
+              return (
+                <div key={item.id} style={{
+                  display: 'flex', alignItems: 'center', gap: '0.65rem', padding: '0.7rem 1rem',
+                  background: `${urgencyColor}08`, borderRadius: '12px',
+                  border: `1px solid ${urgencyColor}25`,
+                  minWidth: '200px', flexShrink: 0, cursor: 'pointer', transition: 'all 0.2s',
+                }} onClick={() => router.push('/important-dates')}>
+                  <div style={{
+                    width: 36, height: 36, borderRadius: '10px',
+                    background: `${urgencyColor}18`, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: urgencyColor, flexShrink: 0,
+                  }}>
+                    {daysUntil <= 3 ? <AlertTriangle size={16} /> : <CalendarCheck size={16} />}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title}</div>
+                    <div style={{ fontSize: '0.65rem', color: urgencyColor, fontWeight: 700 }}>
+                      {daysUntil === 0 ? '🔥 Today!' : daysUntil === 1 ? '⚡ Tomorrow' : `${daysUntil} days left`}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ═══ STAT CARDS ═══ */}
       <div className="grid-2">
@@ -345,17 +434,50 @@ export default function DashboardClient({ stats, categories, recentEntries, toda
           <BookOpen size={18} color="var(--accent-primary)" />
           <h3 style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--text-secondary)', margin: 0 }}>Today's Journal</h3>
         </div>
-        <div style={{ display: 'flex', gap: '0.35rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
-          {MOODS.map((m) => (
-            <button key={m} onClick={() => setJournalMood(m)} style={{ fontSize: '1.15rem', padding: '0.3rem', borderRadius: '8px', cursor: 'pointer', background: journalMood === m ? 'var(--surface-active)' : 'transparent', border: journalMood === m ? '1px solid var(--accent-primary)' : '1px solid transparent', transition: 'all 0.2s' }}>{m}</button>
-          ))}
-        </div>
-        <textarea value={journalText} onChange={(e) => setJournalText(e.target.value)} placeholder="Reflect on your day..."
-          style={{ width: '100%', minHeight: 80, background: 'var(--surface)', border: '1px solid var(--surface-border)', borderRadius: '12px', padding: '1rem', color: 'var(--text-primary)', fontFamily: 'var(--font-sans)', fontSize: '0.9rem', resize: 'vertical', outline: 'none', transition: 'border-color 0.3s' }}
-          onFocus={(e) => { e.target.style.borderColor = 'var(--accent-primary)' }} onBlur={(e) => { e.target.style.borderColor = 'var(--surface-border)' }} />
-        <button className="btn-primary mt-md" onClick={saveJournal} disabled={journalSaving} style={{ width: '100%', padding: '0.7rem' }}>
-          {journalSaving ? 'Saving...' : (todayJournal ? 'Update Journal' : 'Save Journal')}
-        </button>
+
+        {/* Motivational prompt when no journal has been written */}
+        {!hasJournalToday && !showJournalEditor ? (
+          <div style={{
+            background: 'var(--surface)', borderRadius: '16px', padding: '2rem', textAlign: 'center',
+            border: '1px solid var(--surface-border)', position: 'relative', overflow: 'hidden',
+          }}>
+            <div style={{
+              position: 'absolute', inset: 0, opacity: 0.04,
+              background: 'linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 50%, var(--accent-tertiary) 100%)',
+            }} />
+            <Sparkles size={32} color="var(--accent-primary)" style={{ margin: '0 auto 1rem', opacity: 0.6 }} />
+            <p style={{
+              fontSize: '1.1rem', fontStyle: 'italic', lineHeight: 1.6, color: 'var(--text-primary)',
+              maxWidth: '400px', margin: '0 auto', fontWeight: 500,
+            }}>
+              "{journalPrompt}"
+            </p>
+            <p style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', marginTop: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+              Today's Writing Prompt
+            </p>
+            <button
+              className="btn-primary"
+              onClick={() => setShowJournalEditor(true)}
+              style={{ marginTop: '1.25rem', padding: '0.7rem 2rem', fontSize: '0.85rem' }}
+            >
+              <BookOpen size={16} /> Start Writing
+            </button>
+          </div>
+        ) : (
+          <>
+            <div style={{ display: 'flex', gap: '0.35rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+              {MOODS.map((m) => (
+                <button key={m} onClick={() => setJournalMood(m)} style={{ fontSize: '1.15rem', padding: '0.3rem', borderRadius: '8px', cursor: 'pointer', background: journalMood === m ? 'var(--surface-active)' : 'transparent', border: journalMood === m ? '1px solid var(--accent-primary)' : '1px solid transparent', transition: 'all 0.2s' }}>{m}</button>
+              ))}
+            </div>
+            <textarea value={journalText} onChange={(e) => setJournalText(e.target.value)} placeholder="Reflect on your day..."
+              style={{ width: '100%', minHeight: 80, background: 'var(--surface)', border: '1px solid var(--surface-border)', borderRadius: '12px', padding: '1rem', color: 'var(--text-primary)', fontFamily: 'var(--font-sans)', fontSize: '0.9rem', resize: 'vertical', outline: 'none', transition: 'border-color 0.3s' }}
+              onFocus={(e) => { e.target.style.borderColor = 'var(--accent-primary)' }} onBlur={(e) => { e.target.style.borderColor = 'var(--surface-border)' }} />
+            <button className="btn-primary mt-md" onClick={saveJournal} disabled={journalSaving} style={{ width: '100%', padding: '0.7rem' }}>
+              {journalSaving ? 'Saving...' : (todayJournal ? 'Update Journal' : 'Save Journal')}
+            </button>
+          </>
+        )}
       </div>
 
       {/* ═══ QUICK LOG ═══ */}

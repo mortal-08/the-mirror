@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { createTimeEntry } from '@/actions/timeEntries'
 import { useToast } from '@/components/ToastProvider'
-import { Play, Square, Pause, Coffee, Zap, Maximize, Minimize, Settings2, X, RotateCcw, Timer, Tag, CalendarDays, Clock } from 'lucide-react'
+import { Play, Square, Pause, Coffee, Zap, Maximize, Minimize, Settings2, X, RotateCcw, Timer, Tag, CalendarDays, Clock, SkipForward } from 'lucide-react'
 
 type Mode = 'focus' | 'pomodoro'
 type PomodoroPhase = 'work' | 'shortBreak' | 'longBreak'
@@ -63,6 +63,10 @@ export default function LiveTimer({ categories, todayBlocks = [], recentEntries 
   const [modalTagIds, setModalTagIds] = useState<string[]>([])
   const [portalReady, setPortalReady] = useState(false)
   const [isSavingSession, setIsSavingSession] = useState(false)
+  // Categorization modal shown at end of pomodoro work phase when no category was pre-selected
+  const [showCategorizeModal, setShowCategorizeModal] = useState(false)
+  const [categorizeDuration, setCategorizeDuration] = useState(0)
+  const [categorizeStartTime, setCategorizeStartTime] = useState<Date | null>(null)
 
   // Track time for active routine block
   useEffect(() => {
@@ -119,6 +123,8 @@ export default function LiveTimer({ categories, todayBlocks = [], recentEntries 
   const startTimeRef = useRef(0)
   const pausedElapsedRef = useRef(0)
   const saveLockRef = useRef(false)
+  // Store the actual start time for accurate time entry logging
+  const sessionStartRef = useRef<Date | null>(null)
 
   // For portal
   useEffect(() => { setPortalReady(true) }, [])
@@ -239,21 +245,40 @@ export default function LiveTimer({ categories, todayBlocks = [], recentEntries 
       if (pomPhase === 'work') {
         const n = pomCount + 1
         setPomCount(n)
-        createTimeEntry({
-          description: `Pomodoro #${n}`,
-          startTime: new Date(Date.now() - elapsed * 1000),
-          endTime: new Date(),
-          durationSeconds: elapsed,
-          categoryId: selectedCat || undefined,
-          tagIds: selectedTagIds.length > 0 ? selectedTagIds : undefined,
-        })
-        toast(`Pomodoro #${n} logged! 🍅`, 'success')
-        setPomPhase(n % sessionsBeforeLong === 0 ? 'longBreak' : 'shortBreak')
+        const sessionStart = sessionStartRef.current || new Date(Date.now() - elapsed * 1000)
+
+        if (selectedCat) {
+          // Category was pre-selected: auto-save and continue to break
+          createTimeEntry({
+            description: `Pomodoro #${n}`,
+            startTime: sessionStart,
+            endTime: new Date(),
+            durationSeconds: elapsed,
+            categoryId: selectedCat || undefined,
+            tagIds: selectedTagIds.length > 0 ? selectedTagIds : undefined,
+          })
+          toast(`Pomodoro #${n} logged! 🍅`, 'success')
+          setPomPhase(n % sessionsBeforeLong === 0 ? 'longBreak' : 'shortBreak')
+          setElapsed(0); pausedElapsedRef.current = 0; startTimeRef.current = Date.now()
+          sessionStartRef.current = new Date()
+        } else {
+          // No category selected: pause and show categorization modal
+          if (intervalRef.current) clearInterval(intervalRef.current)
+          setRunning(false); setPaused(false)
+          setCategorizeDuration(elapsed)
+          setCategorizeStartTime(sessionStart)
+          setModalCat('')
+          setModalTagIds([])
+          setDesc(`Pomodoro #${n}`)
+          setShowCategorizeModal(true)
+        }
       } else {
+        // Break is over → move to work phase
         setPomPhase('work')
         toast('Break over! Focus time. 💪', 'info')
+        setElapsed(0); pausedElapsedRef.current = 0; startTimeRef.current = Date.now()
+        sessionStartRef.current = new Date()
       }
-      setElapsed(0); pausedElapsedRef.current = 0; startTimeRef.current = Date.now()
     }
   }, [elapsed, running, paused, mode, pomPhase, pomCount, sessionsBeforeLong, selectedCat, selectedTagIds, pomTimes, playSound, toast])
 
@@ -262,33 +287,59 @@ export default function LiveTimer({ categories, todayBlocks = [], recentEntries 
     setShowSettings(false); toast('Settings saved!', 'success')
   }
 
+  const isBreakPhase = pomPhase === 'shortBreak' || pomPhase === 'longBreak'
+
   const doStart = () => {
     setRunning(true); setPaused(false); setElapsed(0)
     pausedElapsedRef.current = 0; startTimeRef.current = Date.now()
+    sessionStartRef.current = new Date()
     if (mode === 'pomodoro') { setPomPhase('work'); setPomCount(0) }
   }
 
   const doPause = () => { pausedElapsedRef.current = elapsed; setPaused(true) }
   const doResume = () => { startTimeRef.current = Date.now(); setPaused(false) }
 
+  const doSkipBreak = () => {
+    if (!running || !isBreakPhase || mode !== 'pomodoro') return
+    setPomPhase('work')
+    setElapsed(0); pausedElapsedRef.current = 0; startTimeRef.current = Date.now()
+    sessionStartRef.current = new Date()
+    toast('Break skipped! Let\'s go! 🚀', 'info')
+  }
+
   const doStop = (e?: React.MouseEvent | React.TouchEvent) => {
     if (e) { e.preventDefault(); e.stopPropagation() }
     if (!running) return
+
+    if (intervalRef.current) clearInterval(intervalRef.current)
+
+    if (mode === 'pomodoro' && isBreakPhase) {
+      // Stopping during break: don't save, don't reset pomCount, just go back to work phase
+      setRunning(false); setPaused(false)
+      setPomPhase('work')
+      setElapsed(0); pausedElapsedRef.current = 0
+      setFullscreen(false)
+      toast('Break ended. Ready for next session.', 'info')
+      return
+    }
+
+    // Stopping during work/focus: show save modal
     const dur = elapsed
     playSound()
-    if (intervalRef.current) clearInterval(intervalRef.current)
     setRunning(false); setPaused(false)
     setStoppedDuration(dur); setModalCat(selectedCat)
     setModalTagIds(selectedTagIds)
     setIsSavingSession(false); saveLockRef.current = false
     setFullscreen(false); setElapsed(0); pausedElapsedRef.current = 0
     setShowModal(true)
+    // Note: manual stop mid-session does NOT increment pomCount
   }
 
   const doReset = () => {
     if (intervalRef.current) clearInterval(intervalRef.current)
     setRunning(false); setPaused(false); setElapsed(0); pausedElapsedRef.current = 0
     setIsSavingSession(false); saveLockRef.current = false
+    sessionStartRef.current = null
   }
 
   const doSave = async () => {
@@ -312,6 +363,41 @@ export default function LiveTimer({ categories, todayBlocks = [], recentEntries 
       setDesc('')
       setStoppedDuration(0)
       setModalTagIds([])
+    } catch {
+      toast('Failed to save session.', 'error')
+    } finally {
+      setIsSavingSession(false)
+      saveLockRef.current = false
+    }
+  }
+
+  // Save from the categorization modal (shown after pomodoro work phase ends without a pre-selected category)
+  const doSaveCategorized = async () => {
+    if (categorizeDuration <= 0 || saveLockRef.current) return
+    saveLockRef.current = true
+    setIsSavingSession(true)
+
+    try {
+      await createTimeEntry({
+        description: desc || `Pomodoro #${pomCount}`,
+        startTime: categorizeStartTime || new Date(Date.now() - categorizeDuration * 1000),
+        endTime: new Date(),
+        durationSeconds: categorizeDuration,
+        categoryId: modalCat || undefined,
+        tagIds: modalTagIds.length > 0 ? modalTagIds : undefined,
+      })
+      toast(`Pomodoro #${pomCount} logged! 🍅`, 'success')
+      setShowCategorizeModal(false)
+      setDesc('')
+      setCategorizeDuration(0)
+      setCategorizeStartTime(null)
+      setModalTagIds([])
+
+      // Continue to break phase
+      setPomPhase(pomCount % sessionsBeforeLong === 0 ? 'longBreak' : 'shortBreak')
+      setElapsed(0); pausedElapsedRef.current = 0; startTimeRef.current = Date.now()
+      sessionStartRef.current = new Date()
+      setRunning(true); setPaused(false)
     } catch {
       toast('Failed to save session.', 'error')
     } finally {
@@ -408,12 +494,36 @@ export default function LiveTimer({ categories, todayBlocks = [], recentEntries 
               <Btn className="btn-secondary" onClick={doStop} style={{ padding: '0.6rem 1.2rem', fontSize: '0.85rem', borderColor: 'rgba(255,0,85,0.4)', color: '#ff5577' }}>
                 <Square size={16} /> Stop
               </Btn>
+              {/* Skip Break button - only visible during break phases */}
+              {mode === 'pomodoro' && isBreakPhase && (
+                <Btn className="btn-secondary" onClick={doSkipBreak} style={{ padding: '0.6rem 1.2rem', fontSize: '0.85rem', borderColor: 'rgba(0,204,136,0.4)', color: '#00cc88' }}>
+                  <SkipForward size={16} /> Skip
+                </Btn>
+              )}
               <Btn className="btn-secondary" onClick={doReset} style={{ padding: '0.6rem 0.8rem', fontSize: '0.85rem' }}>
                 <RotateCcw size={16} />
               </Btn>
             </>
           )}
         </div>
+
+        {/* Pomodoro session counter */}
+        {mode === 'pomodoro' && (
+          <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center', justifyContent: 'center' }}>
+            {Array.from({ length: sessionsBeforeLong }).map((_, i) => (
+              <div key={i} style={{
+                width: 10, height: 10, borderRadius: '50%',
+                background: i < pomCount ? color : 'var(--surface-border)',
+                border: `1.5px solid ${i < pomCount ? color : 'var(--surface-border)'}`,
+                boxShadow: i < pomCount ? `0 0 6px ${color}` : 'none',
+                transition: 'all 0.3s'
+              }} title={`Session ${i + 1}`} />
+            ))}
+            <span style={{ fontSize: '0.6rem', color: 'var(--text-tertiary)', marginLeft: '0.3rem', fontFamily: 'var(--font-mono)' }}>
+              {pomCount}/{sessionsBeforeLong}
+            </span>
+          </div>
+        )}
       </div>
     )
   }
@@ -442,24 +552,10 @@ export default function LiveTimer({ categories, todayBlocks = [], recentEntries 
     document.body
   ) : null
 
-  // ── Save Modal (also portal) ──
-  const saveModal = showModal && portalReady ? createPortal(
-    <div style={{ position: 'fixed', inset: 0, zIndex: 999999, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
-      onClick={() => { if (!isSavingSession) setShowModal(false) }}>
-      <div onClick={(e) => e.stopPropagation()} style={{
-        width: '100%', maxWidth: '380px', padding: '1.5rem',
-        background: 'var(--bg-primary)', border: '1px solid var(--surface-border)',
-        borderRadius: '16px', boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-          <h2 style={{ margin: 0, fontSize: '1rem' }}>Session Complete 🎯</h2>
-          <Btn onClick={() => setShowModal(false)} disabled={isSavingSession} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }} className="">
-            <X size={16} />
-          </Btn>
-        </div>
-        <div style={{ fontSize: '2rem', fontFamily: 'var(--font-mono)', fontWeight: 900, marginBottom: '1rem', color: 'var(--accent-primary)', textAlign: 'center' }}>
-          {fmt(stoppedDuration)}
-        </div>
+  // helper to render category/tag picker (shared between save modal and categorize modal)
+  function renderCategoryTagPicker() {
+    return (
+      <>
         <div style={{ marginBottom: '0.75rem' }}>
           <label style={{ fontSize: '0.7rem' }}>Category</label>
           <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap', marginTop: '0.25rem' }}>
@@ -498,6 +594,29 @@ export default function LiveTimer({ categories, todayBlocks = [], recentEntries 
             </div>
           )}
         </div>
+      </>
+    )
+  }
+
+  // ── Save Modal (for manual stop, focus mode, mid-work stop) ──
+  const saveModal = showModal && portalReady ? createPortal(
+    <div style={{ position: 'fixed', inset: 0, zIndex: 999999, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
+      onClick={() => { if (!isSavingSession) setShowModal(false) }}>
+      <div onClick={(e) => e.stopPropagation()} style={{
+        width: '100%', maxWidth: '380px', padding: '1.5rem',
+        background: 'var(--bg-primary)', border: '1px solid var(--surface-border)',
+        borderRadius: '16px', boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+          <h2 style={{ margin: 0, fontSize: '1rem' }}>Session Complete 🎯</h2>
+          <Btn onClick={() => setShowModal(false)} disabled={isSavingSession} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }} className="">
+            <X size={16} />
+          </Btn>
+        </div>
+        <div style={{ fontSize: '2rem', fontFamily: 'var(--font-mono)', fontWeight: 900, marginBottom: '1rem', color: 'var(--accent-primary)', textAlign: 'center' }}>
+          {fmt(stoppedDuration)}
+        </div>
+        {renderCategoryTagPicker()}
         <div style={{ marginBottom: '1rem' }}>
           <label style={{ fontSize: '0.7rem' }}>Description</label>
           <input type="text" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="What did you work on?" autoFocus disabled={isSavingSession} style={{ marginTop: '0.25rem' }} />
@@ -511,10 +630,39 @@ export default function LiveTimer({ categories, todayBlocks = [], recentEntries 
     document.body
   ) : null
 
+  // ── Categorize Modal (shown when pomodoro work phase completes without pre-selected category) ──
+  const categorizeModal = showCategorizeModal && portalReady ? createPortal(
+    <div style={{ position: 'fixed', inset: 0, zIndex: 999999, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', animation: 'fadeIn 0.2s ease' }}>
+      <div onClick={(e) => e.stopPropagation()} style={{
+        width: '100%', maxWidth: '380px', padding: '1.5rem',
+        background: 'var(--bg-primary)', border: '1px solid var(--surface-border)',
+        borderRadius: '16px', boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+          <h2 style={{ margin: 0, fontSize: '1rem' }}>Pomodoro #{pomCount} Complete 🍅</h2>
+        </div>
+        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>Categorize this session before continuing to break.</p>
+        <div style={{ fontSize: '2rem', fontFamily: 'var(--font-mono)', fontWeight: 900, marginBottom: '1rem', color: '#ffbe0b', textAlign: 'center' }}>
+          {fmt(categorizeDuration)}
+        </div>
+        {renderCategoryTagPicker()}
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={{ fontSize: '0.7rem' }}>Description</label>
+          <input type="text" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="What did you work on?" autoFocus disabled={isSavingSession} style={{ marginTop: '0.25rem' }} />
+        </div>
+        <Btn className="btn-primary" style={{ width: '100%', padding: '0.7rem' }} onClick={doSaveCategorized} disabled={isSavingSession}>
+          {isSavingSession ? 'Saving...' : 'Save & Start Break'}
+        </Btn>
+      </div>
+    </div>,
+    document.body
+  ) : null
+
   return (
     <>
       {fullscreenOverlay}
       {saveModal}
+      {categorizeModal}
 
       {/* Page header (hidden when fullscreen) */}
       {!fullscreen && (

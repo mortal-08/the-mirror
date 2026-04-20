@@ -367,13 +367,13 @@ export default function DateTimePicker({ isOpen, onClose, onSelect, initialDate,
                    onClick={() => { setTimeMode('single'); setRangeTarget('start') }}
                    style={{ flex: 1, padding: '0.5rem', fontSize: '0.8rem', fontWeight: 600, borderRadius: '8px', border: 'none', background: timeMode === 'single' ? 'var(--bg-primary)' : 'transparent', color: timeMode === 'single' ? 'var(--text-primary)' : 'var(--text-tertiary)', cursor: 'pointer', transition: 'all 0.2s', boxShadow: timeMode === 'single' ? '0 2px 8px rgba(0,0,0,0.1)' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
                 >
-                  {timeMode === 'single' && <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent-primary)' }} />} Single time
+                   {timeMode === 'single' && <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent-primary)' }} />} Single time
                 </button>
                 <button
                    onClick={() => { setTimeMode('range'); if (!selectedEndDate) setSelectedEndDate(new Date(selectedDate.getTime() + 3600000)); }}
                    style={{ flex: 1, padding: '0.5rem', fontSize: '0.8rem', fontWeight: 600, borderRadius: '8px', border: 'none', background: timeMode === 'range' ? 'var(--bg-primary)' : 'transparent', color: timeMode === 'range' ? 'var(--text-primary)' : 'var(--text-tertiary)', cursor: 'pointer', transition: 'all 0.2s', boxShadow: timeMode === 'range' ? '0 2px 8px rgba(0,0,0,0.1)' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
                 >
-                  {timeMode === 'range' && <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent-primary)' }} />} Time range
+                   {timeMode === 'range' && <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent-primary)' }} />} Time range
                 </button>
               </div>
                
@@ -435,7 +435,7 @@ export default function DateTimePicker({ isOpen, onClose, onSelect, initialDate,
                             return (
                              <div key={`h-${i}`} onClick={() => handleSelectHour(h)}
                                  style={{ padding: '0.65rem 0', textAlign: 'center', fontSize: isSelected ? '1.1rem' : '0.95rem', fontWeight: isSelected ? 700 : 500, color: isSelected ? 'var(--text-primary)' : 'var(--text-tertiary)', cursor: 'pointer', transition: 'all 0.2s', opacity: isSelected ? 1 : 0.4 }}>
-                                  {h.toString().padStart(2, '0')}h
+                                   {h.toString().padStart(2, '0')}h
                                </div>
                             )
                          })}
@@ -464,7 +464,7 @@ export default function DateTimePicker({ isOpen, onClose, onSelect, initialDate,
                             return (
                              <div key={`m-${i}`} onClick={() => handleSelectMinute(m)}
                                  style={{ padding: '0.65rem 0', textAlign: 'center', fontSize: isSelected ? '1.1rem' : '0.95rem', fontWeight: isSelected ? 700 : 500, color: isSelected ? 'var(--text-primary)' : 'var(--text-tertiary)', cursor: 'pointer', transition: 'all 0.2s', opacity: isSelected ? 1 : 0.4 }}>
-                                  {m.toString().padStart(2, '0')}m
+                                   {m.toString().padStart(2, '0')}m
                                </div>
                             )
                          })}

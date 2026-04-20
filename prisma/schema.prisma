@@ -19,6 +19,7 @@ model User {
   journals     Journal[]
   todos        Todo[]
   routineBlocks RoutineBlock[]
+  importantDates ImportantDate[]
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 }
@@ -115,4 +116,18 @@ model Journal {
   updatedAt DateTime @updatedAt
 
   @@unique([date, userId])
+}
+
+model ImportantDate {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  date        DateTime @db.Date
+  description String?
+  color       String   @default("#f59e0b")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId, date])
 }

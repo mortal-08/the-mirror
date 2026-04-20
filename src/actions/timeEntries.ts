@@ -67,12 +67,20 @@ export async function getEntriesByDateRange(start: Date, end: Date) {
   })
 }
 
-export async function getDashboardStats() {
+export async function getDashboardStats(todayDateKey?: string) {
   const userId = await getUserId()
   if (!userId) return { todaySeconds: 0, weekSeconds: 0, dailyGoal: 36000, weeklyGoal: 252000, categoryBreakdown: [] }
 
-  const now = new Date()
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  // Use the client-provided date key to compute correct "today" boundary
+  // This fixes the timezone bug where server UTC date differs from client local date
+  let today: Date
+  if (todayDateKey) {
+    const [y, m, d] = todayDateKey.split('-').map(Number)
+    today = new Date(y, m - 1, d)
+  } else {
+    const now = new Date()
+    today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  }
   const weekStart = new Date(today)
   weekStart.setDate(today.getDate() - today.getDay())
 
