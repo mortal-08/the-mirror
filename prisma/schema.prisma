@@ -123,11 +123,12 @@ model ImportantDate {
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   title       String
-  date        DateTime @db.Date
+  date        DateTime
   description String?
   color       String   @default("#f59e0b")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  cacheBuster Boolean @default(false)
 
   @@index([userId, date])
 }

@@ -110,6 +110,15 @@ export default function AnalyticsClient({ data, categories }: {
   }, [data, rangeCategory])
 
   const totalCatSeconds = dynamicCategoryTotals.reduce((sum, c) => sum + c.seconds, 0)
+  
+  const productiveCategoryTotals = useMemo(() => {
+    return dynamicCategoryTotals.filter(catTotal => {
+       const catMeta = categories.find(c => c.name === catTotal.name)
+       return catMeta?.isProductive
+    })
+  }, [dynamicCategoryTotals, categories])
+  
+  const totalProductiveCatSeconds = productiveCategoryTotals.reduce((sum, c) => sum + c.seconds, 0)
 
   const RangeSelector = ({ value, onChange }: { value: string, onChange: (v: string) => void }) => (
     <select 
@@ -463,6 +472,57 @@ export default function AnalyticsClient({ data, categories }: {
           </>
         )}
       </div>
+
+      {/* ═══ INTERACTIVE PRODUCTIVE ENERGY SPLIT ═══ */}
+      <div className="glass reveal-up" style={{ '--reveal-delay': '200ms', padding: '1.5rem', marginTop: '1.5rem', background: 'var(--surface-active)', border: '1px solid rgba(124, 58, 237, 0.3)', boxShadow: '0 10px 40px rgba(124, 58, 237, 0.05)' } as React.CSSProperties}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+          <h3 style={{ margin: 0, fontSize: '0.85rem', color: 'var(--accent-primary)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 800 }}>
+            <TrendingUp size={16} strokeWidth={2.5} /> Productive Energy Split
+          </h3>
+        </div>
+        
+        {productiveCategoryTotals.length === 0 ? (
+          <p className="text-secondary" style={{ textAlign: 'center', padding: '2rem 0' }}>No productive time tracked yet.</p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+             <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Breakdown of strictly productive categories.</p>
+             <div style={{ display: 'flex', width: '100%', height: '44px', borderRadius: '12px', overflow: 'hidden', boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.2)' }}>
+                {productiveCategoryTotals.map((cat, i) => {
+                   const pct = totalProductiveCatSeconds > 0 ? (cat.seconds / totalProductiveCatSeconds) * 100 : 0
+                   return (
+                      <div key={i} title={`${cat.name}: ${pct.toFixed(1)}%`} style={{
+                         width: `${pct}%`, height: '100%', background: cat.color,
+                         transition: 'transform 0.2s ease, filter 0.2s ease', position: 'relative', cursor: 'crosshair',
+                         borderRight: i < productiveCategoryTotals.length - 1 ? '1px solid rgba(0,0,0,0.1)' : 'none'
+                      }} className="analytics-bar-column hover-scale-bar" />
+                   )
+                })}
+             </div>
+             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem', marginTop: '0.5rem' }}>
+                {productiveCategoryTotals.map((cat, i) => {
+                   const pct = totalProductiveCatSeconds > 0 ? (cat.seconds / totalProductiveCatSeconds) * 100 : 0
+                   return (
+                      <div key={i} style={{ display: 'flex', flex: '1 1 min-content', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', background: 'var(--surface)', padding: '0.6rem 0.8rem', borderRadius: '8px', border: '1px solid var(--surface-border)', transition: 'all 0.2s', cursor: 'default' }} className="hover-productivity-card">
+                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                           <div style={{ width: 10, height: 10, borderRadius: '4px', background: cat.color, boxShadow: `0 0 8px ${cat.color}` }} />
+                           <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>{cat.name}</span>
+                         </div>
+                         <div style={{ display: 'flex', alignItems: 'flex-end', flexDirection: 'column' }}>
+                           <span style={{ fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>{fmtDuration(cat.seconds)}</span>
+                           <span style={{ fontSize: '0.65rem', color: 'var(--accent-primary)', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>{pct.toFixed(1)}%</span>
+                         </div>
+                      </div>
+                   )
+                })}
+             </div>
+          </div>
+        )}
+      </div>
+
+      <style dangerouslySetInnerHTML={{__html: `
+        .hover-scale-bar:hover { transform: scaleY(1.1); z-index: 10; filter: brightness(1.2); }
+        .hover-productivity-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-color: var(--accent-primary); }
+      `}} />
 
       {/* Day-by-Day Detail */}
       <div className="glass reveal-up" style={{ '--reveal-delay': '240ms', padding: '1.5rem', marginTop: '1.5rem' } as React.CSSProperties}>

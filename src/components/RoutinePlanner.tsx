@@ -422,6 +422,8 @@ export default function RoutinePlanner() {
          onSelect={handleTimeSelect}
          initialDate={pickerInitialDate}
          mode={pickerTarget === 'routineDate' ? 'date' : 'datetime'}
+         forceRange={pickerTarget !== 'routineDate'}
+         hideDateFallback={true}
       />
       
       <style dangerouslySetInnerHTML={{__html: `

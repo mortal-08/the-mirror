@@ -107,6 +107,18 @@ function getDaysUntil(dateStr: string, todayStr: string): number {
   return Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
 }
 
+function extractTimeStr(value: string | Date): string | null {
+  if (!value) return null;
+  const d = new Date(value);
+  const hUTC = d.getUTCHours();
+  const mUTC = d.getUTCMinutes();
+  
+  // If it's precisely midnight UTC, it represents a legacy @db.Date without time.
+  if (hUTC === 0 && mUTC === 0) return null;
+  
+  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+
 export default function DashboardClient({ stats, categories, recentEntries, todayJournal, todayBlocks = [], upcomingDates = [] }: {
   stats: any; categories: any[]; recentEntries: any[]; todayJournal: any; todayBlocks?: any[]; upcomingDates?: any[]
 }) {
@@ -333,8 +345,14 @@ export default function DashboardClient({ stats, categories, recentEntries, toda
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.title}</div>
-                    <div style={{ fontSize: '0.65rem', color: urgencyColor, fontWeight: 700 }}>
-                      {daysUntil === 0 ? '🔥 Today!' : daysUntil === 1 ? '⚡ Tomorrow' : `${daysUntil} days left`}
+                    <div style={{ fontSize: '0.65rem', color: urgencyColor, fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span>{daysUntil === 0 ? '🔥 Today!' : daysUntil === 1 ? '⚡ Tomorrow' : `${daysUntil} days left`}</span>
+                      {extractTimeStr(item.date) && (
+                        <>
+                          <span>•</span>
+                          <span>{extractTimeStr(item.date)}</span>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>

@@ -12,6 +12,8 @@ type DateTimePickerProps = {
   title?: string
   defaultView?: 'time' | 'date'
   mode?: 'datetime' | 'time' | 'date'
+  forceRange?: boolean
+  hideDateFallback?: boolean
 }
 
 const HOURS_PER_DAY = 24
@@ -19,7 +21,7 @@ const MINUTES_PER_HOUR = 60
 const LOOP_CYCLES = 5
 const MIDDLE_CYCLE_INDEX = Math.floor(LOOP_CYCLES / 2)
 
-export default function DateTimePicker({ isOpen, onClose, onSelect, initialDate, title = 'Select Time', defaultView = 'time', mode = 'datetime' }: DateTimePickerProps) {
+export default function DateTimePicker({ isOpen, onClose, onSelect, initialDate, title = 'Select Time', defaultView = 'time', mode = 'datetime', forceRange = false, hideDateFallback = false }: DateTimePickerProps) {
   const [mounted, setMounted] = useState(false)
   
   const [selectedDate, setSelectedDate] = useState<Date>(() => initialDate || new Date())
@@ -70,11 +72,11 @@ export default function DateTimePicker({ isOpen, onClose, onSelect, initialDate,
     if (initialDate && isOpen) {
        setSelectedDate(new Date(initialDate))
        setSelectedEndDate(null)
-       setTimeMode('single')
+       setTimeMode(forceRange ? 'range' : 'single')
        setRangeTarget('start')
        setView(mode === 'date' ? 'date' : defaultView)
     }
-  }, [initialDate, isOpen, defaultView, mode])
+  }, [initialDate, isOpen, defaultView, mode, forceRange])
 
   const hoursArray = useMemo(
     () => Array.from({ length: HOURS_PER_DAY * LOOP_CYCLES }, (_, i) => i % HOURS_PER_DAY),
@@ -130,7 +132,7 @@ export default function DateTimePicker({ isOpen, onClose, onSelect, initialDate,
         const centeredHour = hoursArray[centeredIndex] ?? hr
         centerListItem(hoursListRef.current, toMiddleHourIndex(centeredHour), 'auto')
       }
-    }, 140)
+    }, 40)
   }
 
   const markMinutesScrolling = () => {
@@ -143,7 +145,7 @@ export default function DateTimePicker({ isOpen, onClose, onSelect, initialDate,
         const centeredMinute = minutesArray[centeredIndex] ?? mn
         centerListItem(minutesListRef.current, toMiddleMinuteIndex(centeredMinute), 'auto')
       }
-    }, 140)
+    }, 40)
   }
 
   useEffect(() => {
@@ -362,20 +364,22 @@ export default function DateTimePicker({ isOpen, onClose, onSelect, initialDate,
           {view === 'time' && mode !== 'date' && (
             <>
               {/* Segmented control */}
-              <div style={{ display: 'flex', background: 'var(--surface)', borderRadius: '12px', padding: '0.25rem' }}>
-                <button
-                   onClick={() => { setTimeMode('single'); setRangeTarget('start') }}
-                   style={{ flex: 1, padding: '0.5rem', fontSize: '0.8rem', fontWeight: 600, borderRadius: '8px', border: 'none', background: timeMode === 'single' ? 'var(--bg-primary)' : 'transparent', color: timeMode === 'single' ? 'var(--text-primary)' : 'var(--text-tertiary)', cursor: 'pointer', transition: 'all 0.2s', boxShadow: timeMode === 'single' ? '0 2px 8px rgba(0,0,0,0.1)' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                >
-                   {timeMode === 'single' && <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent-primary)' }} />} Single time
-                </button>
-                <button
-                   onClick={() => { setTimeMode('range'); if (!selectedEndDate) setSelectedEndDate(new Date(selectedDate.getTime() + 3600000)); }}
-                   style={{ flex: 1, padding: '0.5rem', fontSize: '0.8rem', fontWeight: 600, borderRadius: '8px', border: 'none', background: timeMode === 'range' ? 'var(--bg-primary)' : 'transparent', color: timeMode === 'range' ? 'var(--text-primary)' : 'var(--text-tertiary)', cursor: 'pointer', transition: 'all 0.2s', boxShadow: timeMode === 'range' ? '0 2px 8px rgba(0,0,0,0.1)' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                >
-                   {timeMode === 'range' && <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent-primary)' }} />} Time range
-                </button>
-              </div>
+              {!forceRange && (
+                <div style={{ display: 'flex', background: 'var(--surface)', borderRadius: '12px', padding: '0.25rem' }}>
+                  <button
+                     onClick={() => { setTimeMode('single'); setRangeTarget('start') }}
+                     style={{ flex: 1, padding: '0.5rem', fontSize: '0.8rem', fontWeight: 600, borderRadius: '8px', border: 'none', background: timeMode === 'single' ? 'var(--bg-primary)' : 'transparent', color: timeMode === 'single' ? 'var(--text-primary)' : 'var(--text-tertiary)', cursor: 'pointer', transition: 'all 0.2s', boxShadow: timeMode === 'single' ? '0 2px 8px rgba(0,0,0,0.1)' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                  >
+                     {timeMode === 'single' && <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent-primary)' }} />} Single time
+                  </button>
+                  <button
+                     onClick={() => { setTimeMode('range'); if (!selectedEndDate) setSelectedEndDate(new Date(selectedDate.getTime() + 3600000)); }}
+                     style={{ flex: 1, padding: '0.5rem', fontSize: '0.8rem', fontWeight: 600, borderRadius: '8px', border: 'none', background: timeMode === 'range' ? 'var(--bg-primary)' : 'transparent', color: timeMode === 'range' ? 'var(--text-primary)' : 'var(--text-tertiary)', cursor: 'pointer', transition: 'all 0.2s', boxShadow: timeMode === 'range' ? '0 2px 8px rgba(0,0,0,0.1)' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                  >
+                     {timeMode === 'range' && <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent-primary)' }} />} Time range
+                  </button>
+                </div>
+              )}
                
               {/* Time Range Targets */}
               {timeMode === 'range' && (
@@ -434,7 +438,7 @@ export default function DateTimePicker({ isOpen, onClose, onSelect, initialDate,
                            const isSelected = isMiddleCycle && hr === h
                             return (
                              <div key={`h-${i}`} onClick={() => handleSelectHour(h)}
-                                 style={{ padding: '0.65rem 0', textAlign: 'center', fontSize: isSelected ? '1.1rem' : '0.95rem', fontWeight: isSelected ? 700 : 500, color: isSelected ? 'var(--text-primary)' : 'var(--text-tertiary)', cursor: 'pointer', transition: 'all 0.2s', opacity: isSelected ? 1 : 0.4 }}>
+                                 style={{ padding: '0.65rem 0', textAlign: 'center', fontSize: isSelected ? '1.1rem' : '0.95rem', fontWeight: isSelected ? 700 : 500, color: isSelected ? 'var(--accent-primary)' : 'var(--text-tertiary)', cursor: 'pointer', transition: 'none', opacity: isSelected ? 1 : 0.4, textShadow: isSelected ? '0 0 10px rgba(124, 58, 237, 0.4)' : 'none' }}>
                                    {h.toString().padStart(2, '0')}h
                                </div>
                             )
@@ -463,7 +467,7 @@ export default function DateTimePicker({ isOpen, onClose, onSelect, initialDate,
                            const isSelected = isMiddleCycle && mn === m
                             return (
                              <div key={`m-${i}`} onClick={() => handleSelectMinute(m)}
-                                 style={{ padding: '0.65rem 0', textAlign: 'center', fontSize: isSelected ? '1.1rem' : '0.95rem', fontWeight: isSelected ? 700 : 500, color: isSelected ? 'var(--text-primary)' : 'var(--text-tertiary)', cursor: 'pointer', transition: 'all 0.2s', opacity: isSelected ? 1 : 0.4 }}>
+                                 style={{ padding: '0.65rem 0', textAlign: 'center', fontSize: isSelected ? '1.1rem' : '0.95rem', fontWeight: isSelected ? 700 : 500, color: isSelected ? 'var(--accent-primary)' : 'var(--text-tertiary)', cursor: 'pointer', transition: 'none', opacity: isSelected ? 1 : 0.4, textShadow: isSelected ? '0 0 10px rgba(124, 58, 237, 0.4)' : 'none' }}>
                                    {m.toString().padStart(2, '0')}m
                                </div>
                             )
@@ -475,19 +479,21 @@ export default function DateTimePicker({ isOpen, onClose, onSelect, initialDate,
               </div>
               
               {/* Native date fallback or nice date selector */}
-              <div 
-                 onClick={() => setView('date')}
-                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', background: 'var(--surface)', borderRadius: '12px', border: '1px solid var(--surface-border)', marginTop: '0.5rem', cursor: 'pointer' }}
-                 className="hover-bg-surface-hover"
-              >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                     <Calendar size={16} color="var(--text-tertiary)" />
-                     <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Date</span>
-                  </div>
-                  <div style={{ color: 'var(--text-primary)', fontSize: '0.9rem', fontWeight: 600 }}>
-                    {selectedDate.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  </div>
-              </div>
+              {!hideDateFallback && (
+                <div 
+                   onClick={() => setView('date')}
+                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', background: 'var(--surface)', borderRadius: '12px', border: '1px solid var(--surface-border)', marginTop: '0.5rem', cursor: 'pointer' }}
+                   className="hover-bg-surface-hover"
+                >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                       <Calendar size={16} color="var(--text-tertiary)" />
+                       <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Date</span>
+                    </div>
+                    <div style={{ color: 'var(--text-primary)', fontSize: '0.9rem', fontWeight: 600 }}>
+                      {selectedDate.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </div>
+                </div>
+              )}
             </>
           )}
 

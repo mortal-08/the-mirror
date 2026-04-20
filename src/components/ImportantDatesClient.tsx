@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import { createImportantDate, deleteImportantDate } from '@/actions/importantDates'
 import { useToast } from '@/components/ToastProvider'
 import { CalendarCheck, Plus, Trash2, Clock, AlertTriangle, Flame, X, ChevronLeft, ChevronRight, Check } from 'lucide-react'
+import DateTimePicker from '@/components/DateTimePicker'
 
 const COLORS = ['#f59e0b', '#ef4444', '#7c3aed', '#2563eb', '#06b6d4', '#10b981', '#ec4899', '#f97316']
 
@@ -39,6 +40,17 @@ function getUrgencyLabel(daysUntil: number): string {
   if (daysUntil === 0) return 'Today!'
   if (daysUntil === 1) return 'Tomorrow'
   return `${daysUntil} days`
+}
+
+function extractTimeStr(value: string | Date): string | null {
+  if (!value) return null;
+  const d = new Date(value);
+  const hUTC = d.getUTCHours();
+  const mUTC = d.getUTCMinutes();
+  
+  if (hUTC === 0 && mUTC === 0) return null;
+  
+  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
 
 function EliteCalendarModal({ isOpen, onClose, selectedDate, onSelect }: { isOpen: boolean, onClose: () => void, selectedDate: string, onSelect: (date: string) => void }) {
@@ -130,10 +142,12 @@ export default function ImportantDatesClient({ initialDates }: { initialDates: a
   const [dates, setDates] = useState<any[]>(initialDates)
   const [title, setTitle] = useState('')
   const [date, setDate] = useState('')
+  const [time, setTime] = useState('')
   const [description, setDescription] = useState('')
   const [color, setColor] = useState('#f59e0b')
   const [isAdding, setIsAdding] = useState(false)
   const [isCalendarOpen, setIsCalendarOpen] = useState(false)
+  const [isTimePickerOpen, setIsTimePickerOpen] = useState(false)
 
   const sortedDates = useMemo(() => {
     return [...dates].sort((a, b) => {
@@ -153,21 +167,29 @@ export default function ImportantDatesClient({ initialDates }: { initialDates: a
     }
     setIsAdding(true)
     try {
+      const parsedTime = time || '00:00';
       const created = await createImportantDate({
         title: title.trim(),
-        date,
+        date: time ? `${date}T${time}:00` : date,
         description: description.trim() || undefined,
         color,
       })
       setDates(prev => [...prev, created])
       setTitle('')
       setDate('')
+      setTime('')
       setDescription('')
       toast('Important date added! 📅', 'success')
     } catch {
       toast('Failed to add date.', 'error')
     }
     setIsAdding(false)
+  }
+
+  const handleTimeSelect = (selectedDateObj: Date) => {
+    const hh = String(selectedDateObj.getHours()).padStart(2, '0')
+    const mm = String(selectedDateObj.getMinutes()).padStart(2, '0')
+    setTime(`${hh}:${mm}`)
   }
 
   const handleDelete = async (id: string) => {
@@ -201,7 +223,7 @@ export default function ImportantDatesClient({ initialDates }: { initialDates: a
           <Plus size={16} /> Add New Date
         </h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+           <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
             <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Event title (e.g., Final Exam)" style={{ flex: 2, minWidth: '180px' }} />
             <button 
               type="button"
@@ -209,6 +231,14 @@ export default function ImportantDatesClient({ initialDates }: { initialDates: a
               style={{ flex: 1, minWidth: '140px', padding: '1.2rem 1.4rem', background: 'var(--surface)', border: '1px solid var(--surface-border)', borderRadius: 'var(--radius-md)', color: date ? 'var(--text-primary)' : 'var(--text-secondary)', textAlign: 'left', fontFamily: 'var(--font-sans)', fontSize: '0.95rem', cursor: 'pointer' }}
             >
               {date ? new Date(date + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'Select Date...'}
+            </button>
+            <button 
+              type="button"
+              onClick={() => setIsTimePickerOpen(true)}
+              style={{ flex: 1, minWidth: '100px', display: 'flex', alignItems: 'center', gap: '8px', padding: '1.2rem 1.4rem', background: 'var(--surface)', border: '1px solid var(--surface-border)', borderRadius: 'var(--radius-md)', color: time ? 'var(--text-primary)' : 'var(--text-secondary)', fontFamily: 'var(--font-sans)', fontSize: '0.95rem', cursor: 'pointer' }}
+            >
+              <Clock size={16} />
+              {time ? time : 'Time (Opt)'}
             </button>
           </div>
           <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional description or notes..." />
@@ -267,7 +297,15 @@ export default function ImportantDatesClient({ initialDates }: { initialDates: a
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '2px' }}>{item.title}</div>
-                    <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>{formatDate(dateKey)}</div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span>{formatDate(dateKey)}</span>
+                      {extractTimeStr(item.date) && (
+                        <>
+                          <span>•</span>
+                          <span style={{ color: urgencyColor, fontWeight: 600 }}>{extractTimeStr(item.date)}</span>
+                        </>
+                      )}
+                    </div>
                     {item.description && <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '4px' }}>{item.description}</div>}
                   </div>
                   <div style={{
@@ -325,6 +363,14 @@ export default function ImportantDatesClient({ initialDates }: { initialDates: a
         onClose={() => setIsCalendarOpen(false)} 
         selectedDate={date} 
         onSelect={setDate} 
+      />
+      <DateTimePicker
+        isOpen={isTimePickerOpen}
+        onClose={() => setIsTimePickerOpen(false)}
+        onSelect={handleTimeSelect}
+        title="Select Event Time"
+        mode="time"
+        hideDateFallback={true}
       />
     </div>
   )

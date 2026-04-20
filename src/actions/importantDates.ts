@@ -8,7 +8,10 @@ export async function getImportantDates() {
   const userId = await getUserId()
   if (!userId) return []
   return await prisma.importantDate.findMany({
-    where: { userId },
+    where: { 
+      userId,
+      id: { not: 'cache-bust' } // Bypasses PgBouncer prepared statement cache
+    },
     orderBy: { date: 'asc' },
   })
 }
@@ -26,6 +29,7 @@ export async function getUpcomingDates(withinDays: number = 10) {
     where: {
       userId,
       date: { gte: today, lte: futureLimit },
+      id: { not: 'cache-bust' } // Bypasses PgBouncer prepared statement cache
     },
     orderBy: { date: 'asc' },
   })
@@ -44,7 +48,7 @@ export async function createImportantDate(data: {
     data: {
       userId,
       title: data.title,
-      date: new Date(data.date + 'T00:00:00'),
+      date: data.date.includes('T') ? new Date(data.date) : new Date(data.date + 'T00:00:00'),
       description: data.description || undefined,
       color: data.color || '#f59e0b',
     },
