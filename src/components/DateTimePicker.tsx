@@ -99,8 +99,10 @@ export default function DateTimePicker({ isOpen, onClose, onSelect, initialDate,
     const child = list.children[index] as HTMLElement | undefined
     if (!child) return
 
-    const targetTop = child.offsetTop - (list.clientHeight / 2) + (child.clientHeight / 2)
-    list.scrollTo({ top: Math.max(targetTop, 0), behavior })
+    const targetTop = Math.max(child.offsetTop - (list.clientHeight / 2) + (child.clientHeight / 2), 0)
+    // Prevent infinite cyclic onScroll loop caused by sub-pixel precision rounding
+    if (Math.abs(list.scrollTop - targetTop) < 1.5) return
+    list.scrollTo({ top: targetTop, behavior })
   }
 
   const getCenteredIndex = (list: HTMLDivElement): number => {
