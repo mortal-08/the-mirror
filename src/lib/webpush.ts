@@ -1,13 +1,20 @@
 import webpush from 'web-push'
 
-const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY!
+let initialized = false
 
-webpush.setVapidDetails(
-  'mailto:mirror@localhost',
-  VAPID_PUBLIC_KEY,
-  VAPID_PRIVATE_KEY
-)
+function ensureInitialized() {
+  if (initialized) return
+  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+  const privateKey = process.env.VAPID_PRIVATE_KEY
+
+  if (!publicKey || !privateKey) {
+    console.warn('[WebPush] VAPID keys not configured — push notifications will not work.')
+    return
+  }
+
+  webpush.setVapidDetails('mailto:mirror@localhost', publicKey, privateKey)
+  initialized = true
+}
 
 export { webpush }
 
@@ -23,6 +30,8 @@ export async function sendPushToSubscription(
   subscription: { endpoint: string; p256dh: string; auth: string },
   payload: PushPayload
 ): Promise<boolean> {
+  ensureInitialized()
+
   const pushSubscription = {
     endpoint: subscription.endpoint,
     keys: {
