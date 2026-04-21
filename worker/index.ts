@@ -1,7 +1,7 @@
 // Custom worker code bundled into the production service worker by @ducanh2912/next-pwa
 // This handles push events when using the PWA in production (built) mode.
 
-self.addEventListener('push', function (event) {
+self.addEventListener('push', function (event: any) {
   if (!event.data) return
 
   let payload
@@ -29,7 +29,7 @@ self.addEventListener('push', function (event) {
   event.waitUntil(self.registration.showNotification(title, options))
 })
 
-self.addEventListener('notificationclick', function (event) {
+self.addEventListener('notificationclick', function (event: any) {
   event.notification.close()
 
   const urlToOpen = event.notification.data?.url || '/'
