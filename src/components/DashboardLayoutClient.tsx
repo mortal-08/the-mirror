@@ -89,7 +89,25 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
         />
       )}
 
-      {children}
+      {/* Main Page Content */}
+      <div style={{ minHeight: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ flex: 1 }}>
+          {children}
+        </div>
+
+        <footer
+          style={{
+            marginTop: '4rem',
+            paddingBottom: '1rem',
+            textAlign: 'center',
+            fontSize: '0.75rem',
+            color: 'var(--text-tertiary)',
+            letterSpacing: '0.05em',
+          }}
+        >
+          Mirror &copy; 2026 | Harshit
+        </footer>
+      </div>
     </main>
   )
 }

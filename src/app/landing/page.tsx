@@ -285,6 +285,41 @@ export default function LandingPage() {
         </div>
       </RevealSection>
 
+      <footer
+        style={{
+          width: '100%',
+          padding: '2rem 1.25rem 2.5rem',
+          borderTop: '1px solid var(--surface-border)',
+          background: 'linear-gradient(180deg, transparent, rgba(0, 255, 204, 0.03))',
+        }}
+      >
+        <div
+          style={{
+            maxWidth: '1100px',
+            margin: '0 auto',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: '0.75rem',
+            flexWrap: 'wrap',
+            textAlign: 'center',
+            fontSize: '0.78rem',
+            letterSpacing: '0.06em',
+            color: 'var(--text-tertiary)',
+            textTransform: 'uppercase',
+          }}
+        >
+          <span>Mirror &copy; 2026 | Harshit</span>
+          <span aria-hidden="true" style={{ opacity: 0.5 }}>•</span>
+          <a
+            href="mailto:harshitr523@gmail.com"
+            style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}
+          >
+            harshitr523@gmail.com
+          </a>
+        </div>
+      </footer>
+
     </div>
   )
 }
