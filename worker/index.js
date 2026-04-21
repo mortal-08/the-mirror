@@ -1,24 +1,21 @@
 // Custom worker code bundled into the production service worker by @ducanh2912/next-pwa
 // This handles push events when using the PWA in production (built) mode.
 
-// Service worker global — not a DOM window
-declare const self: any
-
-self.addEventListener('push', function (event: any) {
+self.addEventListener('push', function (event) {
   if (!event.data) return
 
-  let payload: any
+  var payload
   try {
     payload = event.data.json()
-  } catch {
+  } catch (e) {
     payload = {
       title: 'Mirror Reminder',
       body: event.data.text(),
     }
   }
 
-  const title = payload.title || 'Mirror Reminder'
-  const options = {
+  var title = payload.title || 'Mirror Reminder'
+  var options = {
     body: payload.body || '',
     icon: '/icon-192.png',
     badge: '/icon-192.png',
@@ -32,15 +29,16 @@ self.addEventListener('push', function (event: any) {
   event.waitUntil(self.registration.showNotification(title, options))
 })
 
-self.addEventListener('notificationclick', function (event: any) {
+self.addEventListener('notificationclick', function (event) {
   event.notification.close()
 
-  const urlToOpen = event.notification.data?.url || '/'
+  var urlToOpen = event.notification.data && event.notification.data.url ? event.notification.data.url : '/'
 
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList: any[]) {
-      for (const client of clientList) {
-        if (client.url.includes(self.location.origin) && 'focus' in client) {
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList) {
+      for (var i = 0; i < clientList.length; i++) {
+        var client = clientList[i]
+        if (client.url.indexOf(self.location.origin) !== -1 && 'focus' in client) {
           return client.focus()
         }
       }
