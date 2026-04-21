@@ -1,10 +1,13 @@
 // Custom worker code bundled into the production service worker by @ducanh2912/next-pwa
 // This handles push events when using the PWA in production (built) mode.
 
+// Service worker global — not a DOM window
+declare const self: any
+
 self.addEventListener('push', function (event: any) {
   if (!event.data) return
 
-  let payload
+  let payload: any
   try {
     payload = event.data.json()
   } catch {
@@ -35,7 +38,7 @@ self.addEventListener('notificationclick', function (event: any) {
   const urlToOpen = event.notification.data?.url || '/'
 
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList) {
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList: any[]) {
       for (const client of clientList) {
         if (client.url.includes(self.location.origin) && 'focus' in client) {
           return client.focus()
