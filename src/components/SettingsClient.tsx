@@ -26,6 +26,9 @@ import {
   setKeyDateIndividualEnabled,
   getKeyDateIndividualLeadMins,
   setKeyDateIndividualLeadMins,
+  subscribeToPush,
+  unsubscribeFromPush,
+  isPushSubscribed,
 } from '@/lib/notifications'
 import { Plus, Trash2, Target, Tag, Folder, Lock, Eye, EyeOff, Shield, Bell, BellRing, Send, Clock, CalendarDays } from 'lucide-react'
 
@@ -62,6 +65,8 @@ export default function SettingsClient({
     setReminderNotificationsEnabled(nextValue)
 
     if (!nextValue) {
+      // Unsubscribe from server push
+      await unsubscribeFromPush()
       toast('Reminder notifications disabled.', 'info')
       return
     }
@@ -86,14 +91,20 @@ export default function SettingsClient({
       setIsRequestingPermission(false)
 
       if (nextPermission === 'granted') {
-        toast('Notifications enabled for reminders.', 'success')
+        // Subscribe to server push
+        await subscribeToPush()
+        toast('Notifications enabled — works even when app is closed!', 'success')
       } else {
         toast('Please allow notifications to receive reminders.', 'error')
       }
       return
     }
 
-    toast('Reminder notifications enabled.', 'success')
+    // Permission already granted — subscribe to push
+    if (!isPushSubscribed()) {
+      await subscribeToPush()
+    }
+    toast('Notifications enabled — works even when app is closed!', 'success')
   }
 
   const handleRequestPermission = async () => {

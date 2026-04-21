@@ -17,6 +17,9 @@ import {
   getKeyDateIndividualEnabled,
   getKeyDateIndividualLeadMins,
   ROUTINE_RELOAD_EVENT,
+  registerPushServiceWorker,
+  subscribeToPush,
+  isPushSubscribed,
 } from '@/lib/notifications'
 
 type RoutineReminderBlock = {
@@ -105,6 +108,29 @@ export default function ReminderScheduler() {
   const lastFetchedAtRef = useRef<number>(0)
   const lastFetchedDateKeyRef = useRef<string>('')
   const tickInFlightRef = useRef(false)
+
+  // Register service worker and auto-subscribe to push on mount
+  useEffect(() => {
+    const initPush = async () => {
+      try {
+        // Register the push SW
+        await registerPushServiceWorker()
+
+        // Auto-subscribe if reminders are enabled and permission is granted
+        if (
+          getReminderNotificationsEnabled() &&
+          getNotificationPermissionState() === 'granted' &&
+          !isPushSubscribed()
+        ) {
+          await subscribeToPush()
+        }
+      } catch (err) {
+        console.warn('[ReminderScheduler] Push init error:', err)
+      }
+    }
+
+    void initPush()
+  }, [])
 
   useEffect(() => {
     let active = true

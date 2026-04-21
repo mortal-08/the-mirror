@@ -20,6 +20,7 @@ model User {
   todos        Todo[]
   routineBlocks RoutineBlock[]
   importantDates ImportantDate[]
+  pushSubscriptions PushSubscription[]
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 }
@@ -131,4 +132,17 @@ model ImportantDate {
   cacheBuster Boolean @default(false)
 
   @@index([userId, date])
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  timezone  String   @default("UTC")
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }

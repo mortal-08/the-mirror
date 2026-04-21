@@ -256,3 +256,161 @@ export async function showReminderNotification(title: string, body: string, tag:
     return false
   }
 }
+
+// ═══════════════════════════════════════════════
+// PUSH SUBSCRIPTION MANAGEMENT
+// ═══════════════════════════════════════════════
+
+const PUSH_SUBSCRIBED_KEY = 'mirror:push-subscribed'
+
+export function isPushSubscribed(): boolean {
+  if (!hasWindow()) return false
+  try {
+    return localStorage.getItem(PUSH_SUBSCRIBED_KEY) === 'true'
+  } catch {
+    return false
+  }
+}
+
+function setPushSubscribedFlag(subscribed: boolean) {
+  if (!hasWindow()) return
+  try {
+    localStorage.setItem(PUSH_SUBSCRIBED_KEY, subscribed ? 'true' : 'false')
+  } catch {}
+}
+
+/**
+ * Register the push service worker.
+ * In dev mode, we register our own push-sw.js.
+ * In production, the next-pwa generated SW handles push via worker/index.ts.
+ */
+export async function registerPushServiceWorker(): Promise<ServiceWorkerRegistration | null> {
+  if (!hasWindow() || !('serviceWorker' in navigator)) return null
+
+  try {
+    // Check if a service worker is already registered
+    let registration = await navigator.serviceWorker.getRegistration('/')
+    if (registration) {
+      return registration
+    }
+
+    // Register our push service worker
+    registration = await navigator.serviceWorker.register('/push-sw.js', { scope: '/' })
+    await navigator.serviceWorker.ready
+    console.log('[Push] Service worker registered successfully.')
+    return registration
+  } catch (error) {
+    console.error('[Push] Failed to register service worker:', error)
+    return null
+  }
+}
+
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const rawData = window.atob(base64)
+  const outputArray = new Uint8Array(rawData.length)
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i)
+  }
+  return outputArray
+}
+
+/**
+ * Subscribe the browser to push notifications and store the subscription on the server.
+ */
+export async function subscribeToPush(): Promise<boolean> {
+  if (!hasWindow() || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+    console.warn('[Push] Push notifications not supported in this browser.')
+    return false
+  }
+
+  try {
+    const registration = await registerPushServiceWorker()
+    if (!registration) return false
+
+    // Check for existing subscription
+    let subscription = await registration.pushManager.getSubscription()
+
+    if (!subscription) {
+      const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+      if (!vapidKey) {
+        console.error('[Push] VAPID public key not configured.')
+        return false
+      }
+
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidKey),
+      })
+    }
+
+    // Get subscription keys
+    const p256dh = subscription.getKey('p256dh')
+    const auth = subscription.getKey('auth')
+
+    if (!p256dh || !auth) {
+      console.error('[Push] Missing subscription keys.')
+      return false
+    }
+
+    // Send subscription to server
+    const response = await fetch('/api/push/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        endpoint: subscription.endpoint,
+        p256dh: btoa(String.fromCharCode(...new Uint8Array(p256dh))),
+        auth: btoa(String.fromCharCode(...new Uint8Array(auth))),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+      }),
+    })
+
+    if (!response.ok) {
+      console.error('[Push] Failed to save subscription on server.')
+      return false
+    }
+
+    setPushSubscribedFlag(true)
+    console.log('[Push] Successfully subscribed to push notifications.')
+    return true
+  } catch (error) {
+    console.error('[Push] Subscription error:', error)
+    return false
+  }
+}
+
+/**
+ * Unsubscribe from push notifications.
+ */
+export async function unsubscribeFromPush(): Promise<boolean> {
+  if (!hasWindow() || !('serviceWorker' in navigator)) return false
+
+  try {
+    const registration = await navigator.serviceWorker.getRegistration('/')
+    if (!registration) return true
+
+    const subscription = await registration.pushManager.getSubscription()
+    if (!subscription) {
+      setPushSubscribedFlag(false)
+      return true
+    }
+
+    // Unsubscribe from browser
+    await subscription.unsubscribe()
+
+    // Remove from server
+    await fetch('/api/push/subscribe', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ endpoint: subscription.endpoint }),
+    }).catch(() => {})
+
+    setPushSubscribedFlag(false)
+    console.log('[Push] Successfully unsubscribed from push notifications.')
+    return true
+  } catch (error) {
+    console.error('[Push] Unsubscribe error:', error)
+    return false
+  }
+}

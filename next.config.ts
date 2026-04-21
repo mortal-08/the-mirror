@@ -14,6 +14,7 @@ const withPWA = withPWAInit({
 
 const nextConfig: NextConfig = {
   turbopack: {},
+  serverExternalPackages: ["web-push"],
 };
 
 export default withPWA(nextConfig);
