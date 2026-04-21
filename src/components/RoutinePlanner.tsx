@@ -6,6 +6,7 @@ import { createRoutineBlock, deleteRoutineBlock, getRoutineBlocks, reorderRoutin
 import { useToast } from '@/components/ToastProvider'
 import TodoList from '@/components/TodoList'
 import DateTimePicker from '@/components/DateTimePicker'
+import { ROUTINE_RELOAD_EVENT } from '@/lib/notifications'
 
 type RoutineBlock = {
   id: string
@@ -169,6 +170,7 @@ export default function RoutinePlanner() {
     } else {
       setSelectedBlocks((prev) => sortBlocks([...prev, result.data]))
       setTask('')
+      window.dispatchEvent(new CustomEvent(ROUTINE_RELOAD_EVENT))
       toast('Routine block added.', 'success')
     }
     setIsCreating(false)
@@ -184,6 +186,7 @@ export default function RoutinePlanner() {
       setSelectedBlocks(previousSelected)
       toast(result.error, 'error')
     } else {
+      window.dispatchEvent(new CustomEvent(ROUTINE_RELOAD_EVENT))
       toast('Routine block removed.', 'success')
     }
     setDeletingIds((prev) => {
@@ -221,6 +224,7 @@ export default function RoutinePlanner() {
     }
 
     setSelectedBlocks((prev) => sortBlocks(prev.map((block) => (block.id === editingId ? result.data : block))))
+    window.dispatchEvent(new CustomEvent(ROUTINE_RELOAD_EVENT))
     toast('Routine block updated.', 'success')
     setIsSavingEdit(false)
     cancelEditBlock()
@@ -253,6 +257,7 @@ export default function RoutinePlanner() {
       toast(result.error, 'error')
     } else {
       setSelectedBlocks(sortBlocks(result.data))
+      window.dispatchEvent(new CustomEvent(ROUTINE_RELOAD_EVENT))
       toast('Routine reordered.', 'success')
     }
 

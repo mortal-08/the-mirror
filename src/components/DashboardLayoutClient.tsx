@@ -2,8 +2,14 @@
 
 import { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import { useSidebar } from '@/components/Sidebar'
+import ReminderScheduler from '@/components/ReminderScheduler'
 import { Menu, X } from 'lucide-react'
+
+const NotificationPermissionNudge = dynamic(() => import('@/components/NotificationPermissionNudge'), {
+  ssr: false,
+})
 
 export default function DashboardLayoutClient({ children }: { children: React.ReactNode }) {
   const { collapsed } = useSidebar()
@@ -53,6 +59,9 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
         padding: isMobile ? '1rem' : '1.5rem',
       }}
     >
+      <ReminderScheduler />
+      <NotificationPermissionNudge />
+
       {/* Hamburger - only on mobile */}
       {isMobile && (
         <button

@@ -5,6 +5,7 @@ import { createImportantDate, deleteImportantDate, updateImportantDate } from '@
 import { useToast } from '@/components/ToastProvider'
 import { CalendarCheck, Plus, Trash2, Clock, AlertTriangle, Flame, X, ChevronLeft, ChevronRight, Check, Pencil } from 'lucide-react'
 import DateTimePicker from '@/components/DateTimePicker'
+import { ROUTINE_RELOAD_EVENT } from '@/lib/notifications'
 
 const COLORS = ['#f59e0b', '#ef4444', '#7c3aed', '#2563eb', '#06b6d4', '#10b981', '#ec4899', '#f97316']
 const UTC_TIME_FORMATTER = new Intl.DateTimeFormat('en-US', {
@@ -229,10 +230,12 @@ export default function ImportantDatesClient({ initialDates }: { initialDates: I
       if (editingId) {
         const updated = await updateImportantDate(editingId, payload)
         setDates(prev => prev.map(d => (d.id === editingId ? updated : d)))
+        window.dispatchEvent(new CustomEvent(ROUTINE_RELOAD_EVENT))
         toast('Important date updated.', 'success')
       } else {
         const created = await createImportantDate(payload)
         setDates(prev => [...prev, created])
+        window.dispatchEvent(new CustomEvent(ROUTINE_RELOAD_EVENT))
         toast('Important date added! 📅', 'success')
       }
 
@@ -270,6 +273,7 @@ export default function ImportantDatesClient({ initialDates }: { initialDates: I
     try {
       await deleteImportantDate(id)
       setDates(prev => prev.filter(d => d.id !== id))
+      window.dispatchEvent(new CustomEvent(ROUTINE_RELOAD_EVENT))
       toast('Date removed.', 'success')
     } catch {
       toast('Failed to delete.', 'error')

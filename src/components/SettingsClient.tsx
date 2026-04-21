@@ -1,12 +1,33 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { createCategory, deleteCategory, updateCategory } from '@/actions/categories'
 import { upsertGoal } from '@/actions/goals'
 import { createTag, deleteTag } from '@/actions/tags'
 import { changePassword } from '@/actions/auth'
 import { useToast } from '@/components/ToastProvider'
-import { Plus, Trash2, Target, Tag, Folder, Lock, Eye, EyeOff, Shield } from 'lucide-react'
+import {
+  getNotificationPermissionState,
+  getReminderNotificationsEnabled,
+  requestNotificationPermission,
+  setReminderNotificationsEnabled,
+  showReminderNotification,
+  getRoutineReminderLeadMins,
+  setRoutineReminderLeadMins,
+  getKeyDateReminderHour,
+  setKeyDateReminderHour,
+  getRoutineStartEnabled,
+  setRoutineStartEnabled,
+  getRoutinePreEnabled,
+  setRoutinePreEnabled,
+  getKeyDateSummaryEnabled,
+  setKeyDateSummaryEnabled,
+  getKeyDateIndividualEnabled,
+  setKeyDateIndividualEnabled,
+  getKeyDateIndividualLeadMins,
+  setKeyDateIndividualLeadMins,
+} from '@/lib/notifications'
+import { Plus, Trash2, Target, Tag, Folder, Lock, Eye, EyeOff, Shield, Bell, BellRing, Send, Clock, CalendarDays } from 'lucide-react'
 
 const COLORS = ['#7c3aed', '#2563eb', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#f97316']
 
@@ -20,6 +41,100 @@ export default function SettingsClient({
   initialTags: any[]
 }) {
   const { toast } = useToast()
+
+  const [remindersEnabled, setRemindersEnabled] = useState<boolean>(() => getReminderNotificationsEnabled())
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | 'unsupported'>(() => getNotificationPermissionState())
+  const [isRequestingPermission, setIsRequestingPermission] = useState(false)
+  
+  const [routineLeadMins, setRoutineLeadMins] = useState<number>(() => getRoutineReminderLeadMins())
+  const [keyDateHour, setKeyDateHour] = useState<number>(() => getKeyDateReminderHour())
+
+  // Granular toggles
+  const [routineStartOn, setRoutineStartOn] = useState<boolean>(() => getRoutineStartEnabled())
+  const [routinePreOn, setRoutinePreOn] = useState<boolean>(() => getRoutinePreEnabled())
+  const [keyDateSummaryOn, setKeyDateSummaryOn] = useState<boolean>(() => getKeyDateSummaryEnabled())
+  const [keyDateIndividualOn, setKeyDateIndividualOn] = useState<boolean>(() => getKeyDateIndividualEnabled())
+  const [keyDateIndividualLeadMins, setKeyDateIndividualLeadMinsState] = useState<number>(() => getKeyDateIndividualLeadMins())
+
+  const handleToggleReminders = async () => {
+    const nextValue = !remindersEnabled
+    setRemindersEnabled(nextValue)
+    setReminderNotificationsEnabled(nextValue)
+
+    if (!nextValue) {
+      toast('Reminder notifications disabled.', 'info')
+      return
+    }
+
+    const permission = getNotificationPermissionState()
+    setNotificationPermission(permission)
+
+    if (permission === 'unsupported') {
+      toast('Notifications are not supported on this browser.', 'error')
+      return
+    }
+
+    if (permission === 'denied') {
+      toast('Notifications are blocked. Enable them in browser settings.', 'error')
+      return
+    }
+
+    if (permission === 'default') {
+      setIsRequestingPermission(true)
+      const nextPermission = await requestNotificationPermission()
+      setNotificationPermission(nextPermission)
+      setIsRequestingPermission(false)
+
+      if (nextPermission === 'granted') {
+        toast('Notifications enabled for reminders.', 'success')
+      } else {
+        toast('Please allow notifications to receive reminders.', 'error')
+      }
+      return
+    }
+
+    toast('Reminder notifications enabled.', 'success')
+  }
+
+  const handleRequestPermission = async () => {
+    setIsRequestingPermission(true)
+    const permission = await requestNotificationPermission()
+    setNotificationPermission(permission)
+    setIsRequestingPermission(false)
+
+    if (permission === 'granted') {
+      toast('Notifications enabled.', 'success')
+    } else if (permission === 'denied') {
+      toast('Notifications are blocked. Enable them in browser settings.', 'error')
+    }
+  }
+
+  const handleTestNotification = async () => {
+    if (!remindersEnabled) {
+      toast('Enable reminder notifications first.', 'error')
+      return
+    }
+
+    const permission = getNotificationPermissionState()
+    setNotificationPermission(permission)
+
+    if (permission !== 'granted') {
+      toast('Please allow notifications first.', 'error')
+      return
+    }
+
+    const sent = await showReminderNotification(
+      'Mirror reminder test',
+      'Routine and key-date reminders are working on this device.',
+      'mirror-reminder-test'
+    )
+
+    if (sent) {
+      toast('Test notification sent.', 'success')
+    } else {
+      toast('Could not send test notification.', 'error')
+    }
+  }
 
   // Goals
   const dailyGoal = initialGoals.find((g: any) => g.type === 'DAILY')
@@ -42,6 +157,17 @@ export default function SettingsClient({
   const [newCatTagIds, setNewCatTagIds] = useState<string[]>([])
   const [updatingProductiveIds, setUpdatingProductiveIds] = useState<Set<string>>(new Set())
   const [updatingCategoryTagIds, setUpdatingCategoryTagIds] = useState<Set<string>>(new Set())
+  
+  // Debounce refs for tag updates
+  const tagDebounceTimers = useRef<Record<string, NodeJS.Timeout>>({})
+  const pendingTagUpdates = useRef<Record<string, string[]>>({})
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(tagDebounceTimers.current).forEach(clearTimeout)
+    }
+  }, [])
 
   const handleAddCat = async () => {
     if (!newCatName.trim()) return
@@ -84,7 +210,7 @@ export default function SettingsClient({
     setNewCatTagIds((prev) => (prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]))
   }
 
-  const handleToggleCategoryTag = async (categoryId: string, tagId: string) => {
+  const handleToggleCategoryTag = (categoryId: string, tagId: string) => {
     const category = categories.find((c) => c.id === categoryId)
     if (!category) return
 
@@ -93,9 +219,7 @@ export default function SettingsClient({
       ? currentTagIds.filter((id) => id !== tagId)
       : [...currentTagIds, tagId]
 
-    setUpdatingCategoryTagIds((prev) => new Set(prev).add(categoryId))
-    
-    // Optimistic Update
+    // 1. Optimistic Update (Immediate UI response)
     setCategories((prev) => prev.map((c) => {
       if (c.id !== categoryId) return c
       return {
@@ -104,20 +228,35 @@ export default function SettingsClient({
       }
     }))
 
-    try {
-      const updated = await updateCategory(categoryId, { tagIds: nextTagIds })
-      // Use the server response to solidify the state
-      setCategories((prev) => prev.map((c) => (c.id === categoryId ? updated : c)))
-      toast('Category tags updated!', 'success')
-    } catch {
-      toast('Failed to update category tags.', 'error')
+    // 2. Debounced save to server
+    pendingTagUpdates.current[categoryId] = nextTagIds
+
+    if (tagDebounceTimers.current[categoryId]) {
+      clearTimeout(tagDebounceTimers.current[categoryId])
     }
 
-    setUpdatingCategoryTagIds((prev) => {
-      const next = new Set(prev)
-      next.delete(categoryId)
-      return next
-    })
+    tagDebounceTimers.current[categoryId] = setTimeout(async () => {
+      const finalTagIds = pendingTagUpdates.current[categoryId]
+      if (!finalTagIds) return
+
+      setUpdatingCategoryTagIds((prev) => new Set(prev).add(categoryId))
+      try {
+        const updated = await updateCategory(categoryId, { tagIds: finalTagIds })
+        // Re-sync with server response in case of other changes
+        setCategories((prev) => prev.map((c) => (c.id === categoryId ? updated : c)))
+      } catch (err) {
+        console.error('Failed to update tags:', err)
+        toast('Failed to save tag changes to the server.', 'error')
+      } finally {
+        setUpdatingCategoryTagIds((prev) => {
+          const next = new Set(prev)
+          next.delete(categoryId)
+          return next
+        })
+        delete tagDebounceTimers.current[categoryId]
+        delete pendingTagUpdates.current[categoryId]
+      }
+    }, 1000) // 1 second debounce
   }
 
   // Tags
@@ -227,7 +366,6 @@ export default function SettingsClient({
                           <button
                             key={tag.id}
                             type="button"
-                            disabled={isUpdatingTags}
                             onClick={() => handleToggleCategoryTag(c.id, tag.id)}
                             className={isSelected ? 'btn-primary' : 'btn-secondary'}
                             style={{
@@ -237,7 +375,6 @@ export default function SettingsClient({
                               alignItems: 'center',
                               gap: '4px',
                               borderColor: isSelected ? tag.color : undefined,
-                              opacity: isUpdatingTags ? 0.7 : 1,
                             }}
                           >
                             <span style={{ width: 6, height: 6, borderRadius: '50%', background: tag.color }} />
@@ -418,6 +555,261 @@ export default function SettingsClient({
             ))}
           </div>
           <button className="btn-primary" onClick={handleAddTag} style={{ padding: '0.75rem 1rem' }}><Plus size={18} /></button>
+        </div>
+      </div>
+
+      {/* Reminder Notifications */}
+      <div className="glass" style={{ padding: '2rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid var(--surface-border)' }}>
+          <BellRing size={20} style={{ color: 'var(--accent-primary)' }} />
+          <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Reminder Notifications</h3>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <p className="text-sm text-secondary" style={{ margin: 0, lineHeight: 1.5 }}>
+            Customize when you receive alerts for your daily schedule and important events.
+          </p>
+
+          {/* Master toggle */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', padding: '0.85rem 1rem', background: 'var(--surface)', border: '1px solid var(--surface-border)', borderRadius: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+              <Bell size={16} style={{ color: remindersEnabled ? 'var(--accent-primary)' : 'var(--text-tertiary)' }} />
+              <span style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                Device reminders
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleToggleReminders}
+              disabled={isRequestingPermission}
+              style={{
+                border: 'none',
+                borderRadius: '999px',
+                padding: '0.45rem 0.9rem',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+                cursor: isRequestingPermission ? 'not-allowed' : 'pointer',
+                background: remindersEnabled ? 'var(--accent-primary)' : 'var(--surface-hover)',
+                color: remindersEnabled ? 'var(--text-inverse)' : 'var(--text-secondary)',
+                opacity: isRequestingPermission ? 0.7 : 1,
+              }}
+            >
+              {isRequestingPermission ? 'Working...' : remindersEnabled ? 'Enabled' : 'Enable'}
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <span className="text-sm text-secondary">
+              Permission: {notificationPermission === 'unsupported' ? 'Not supported' : notificationPermission}
+            </span>
+
+            {notificationPermission !== 'granted' && notificationPermission !== 'unsupported' && (
+              <button className="btn-secondary" type="button" onClick={handleRequestPermission} disabled={isRequestingPermission}>
+                {isRequestingPermission ? 'Requesting...' : 'Allow Notifications'}
+              </button>
+            )}
+
+            <button className="btn-primary" type="button" onClick={handleTestNotification} style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+              <Send size={15} /> Test Notification
+            </button>
+          </div>
+
+          {remindersEnabled && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '0.25rem' }}>
+
+              {/* ─── Routine Notifications ─── */}
+              <div style={{ background: 'var(--surface)', borderRadius: '14px', border: '1px solid var(--surface-border)', overflow: 'hidden' }}>
+                <div style={{ padding: '0.9rem 1.15rem', display: 'flex', alignItems: 'center', gap: '0.6rem', borderBottom: '1px solid var(--surface-border)', background: 'linear-gradient(135deg, rgba(124,58,237,0.06), transparent)' }}>
+                  <Clock size={15} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
+                  <span style={{ fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-secondary)' }}>Routine Notifications</span>
+                </div>
+
+                <div style={{ padding: '1rem 1.15rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                  {/* At Start toggle */}
+                  <div
+                    onClick={() => {
+                      const next = !routineStartOn
+                      setRoutineStartOn(next)
+                      setRoutineStartEnabled(next)
+                      toast(next ? 'Notify at routine start enabled.' : 'Notify at routine start disabled.', 'info')
+                    }}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem',
+                      padding: '0.65rem 0.85rem', borderRadius: '10px', cursor: 'pointer', userSelect: 'none',
+                      background: routineStartOn ? 'rgba(124,58,237,0.08)' : 'var(--surface)',
+                      border: `1px solid ${routineStartOn ? 'rgba(124,58,237,0.25)' : 'var(--surface-border)'}`,
+                      transition: 'all 0.25s ease',
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-primary)' }}>At start of event</div>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-tertiary)', marginTop: '2px' }}>Get notified when a routine block begins</div>
+                    </div>
+                    <div style={{ width: '36px', height: '20px', background: routineStartOn ? 'var(--accent-primary)' : 'var(--text-tertiary)', borderRadius: '10px', position: 'relative', transition: 'all 0.3s', flexShrink: 0 }}>
+                      <div style={{ position: 'absolute', top: '2px', left: routineStartOn ? '18px' : '2px', width: '16px', height: '16px', borderRadius: '50%', background: '#fff', transition: 'left 0.2s cubic-bezier(0.16, 1, 0.3, 1)', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+                    </div>
+                  </div>
+
+                  {/* Before start toggle */}
+                  <div
+                    onClick={() => {
+                      const next = !routinePreOn
+                      setRoutinePreOn(next)
+                      setRoutinePreEnabled(next)
+                      toast(next ? 'Early routine reminder enabled.' : 'Early routine reminder disabled.', 'info')
+                    }}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem',
+                      padding: '0.65rem 0.85rem', borderRadius: '10px', cursor: 'pointer', userSelect: 'none',
+                      background: routinePreOn ? 'rgba(124,58,237,0.08)' : 'var(--surface)',
+                      border: `1px solid ${routinePreOn ? 'rgba(124,58,237,0.25)' : 'var(--surface-border)'}`,
+                      transition: 'all 0.25s ease',
+                    }}
+                  >
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-primary)' }}>Before event starts</div>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-tertiary)', marginTop: '2px' }}>Heads-up alert before each block</div>
+                    </div>
+                    <div style={{ width: '36px', height: '20px', background: routinePreOn ? 'var(--accent-primary)' : 'var(--text-tertiary)', borderRadius: '10px', position: 'relative', transition: 'all 0.3s', flexShrink: 0 }}>
+                      <div style={{ position: 'absolute', top: '2px', left: routinePreOn ? '18px' : '2px', width: '16px', height: '16px', borderRadius: '50%', background: '#fff', transition: 'left 0.2s cubic-bezier(0.16, 1, 0.3, 1)', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+                    </div>
+                  </div>
+
+                  {/* Lead time selector — only visible when pre is enabled */}
+                  {routinePreOn && (
+                    <div style={{ paddingLeft: '0.5rem' }}>
+                      <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: '0.35rem' }}>How early?</label>
+                      <select
+                        value={routineLeadMins}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value)
+                          setRoutineLeadMins(val)
+                          setRoutineReminderLeadMins(val)
+                          toast(`Routine lead time set to ${val} minutes.`, 'info')
+                        }}
+                        style={{ width: '100%', maxWidth: '220px', padding: '0.55rem 0.7rem', borderRadius: '8px', background: 'var(--surface)', border: '1px solid var(--surface-border)', color: 'var(--text-primary)', fontSize: '0.82rem' }}
+                      >
+                        <option value={5}>5 minutes before</option>
+                        <option value={10}>10 minutes before</option>
+                        <option value={15}>15 minutes before</option>
+                        <option value={30}>30 minutes before</option>
+                      </select>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* ─── Key Date Notifications ─── */}
+              <div style={{ background: 'var(--surface)', borderRadius: '14px', border: '1px solid var(--surface-border)', overflow: 'hidden' }}>
+                <div style={{ padding: '0.9rem 1.15rem', display: 'flex', alignItems: 'center', gap: '0.6rem', borderBottom: '1px solid var(--surface-border)', background: 'linear-gradient(135deg, rgba(245,158,11,0.06), transparent)' }}>
+                  <CalendarDays size={15} style={{ color: '#f59e0b', flexShrink: 0 }} />
+                  <span style={{ fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-secondary)' }}>Key Date Notifications</span>
+                </div>
+
+                <div style={{ padding: '1rem 1.15rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                  {/* Daily summary toggle */}
+                  <div
+                    onClick={() => {
+                      const next = !keyDateSummaryOn
+                      setKeyDateSummaryOn(next)
+                      setKeyDateSummaryEnabled(next)
+                      toast(next ? 'Daily key date summary enabled.' : 'Daily key date summary disabled.', 'info')
+                    }}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem',
+                      padding: '0.65rem 0.85rem', borderRadius: '10px', cursor: 'pointer', userSelect: 'none',
+                      background: keyDateSummaryOn ? 'rgba(245,158,11,0.08)' : 'var(--surface)',
+                      border: `1px solid ${keyDateSummaryOn ? 'rgba(245,158,11,0.25)' : 'var(--surface-border)'}`,
+                      transition: 'all 0.25s ease',
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-primary)' }}>Daily summary</div>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-tertiary)', marginTop: '2px' }}>One morning alert listing all key dates for the day</div>
+                    </div>
+                    <div style={{ width: '36px', height: '20px', background: keyDateSummaryOn ? '#f59e0b' : 'var(--text-tertiary)', borderRadius: '10px', position: 'relative', transition: 'all 0.3s', flexShrink: 0 }}>
+                      <div style={{ position: 'absolute', top: '2px', left: keyDateSummaryOn ? '18px' : '2px', width: '16px', height: '16px', borderRadius: '50%', background: '#fff', transition: 'left 0.2s cubic-bezier(0.16, 1, 0.3, 1)', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+                    </div>
+                  </div>
+
+                  {/* Summary hour selector */}
+                  {keyDateSummaryOn && (
+                    <div style={{ paddingLeft: '0.5rem' }}>
+                      <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: '0.35rem' }}>Summary time</label>
+                      <select
+                        value={keyDateHour}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value)
+                          setKeyDateHour(val)
+                          setKeyDateReminderHour(val)
+                          toast(`Key date summary set to ${val}:00.`, 'info')
+                        }}
+                        style={{ width: '100%', maxWidth: '220px', padding: '0.55rem 0.7rem', borderRadius: '8px', background: 'var(--surface)', border: '1px solid var(--surface-border)', color: 'var(--text-primary)', fontSize: '0.82rem' }}
+                      >
+                        {[...Array(13)].map((_, i) => (
+                          <option key={i} value={i}>{i === 0 ? 'Midnight' : `${i}:00 AM`}</option>
+                        ))}
+                        {[...Array(11)].map((_, i) => (
+                          <option key={i + 13} value={i + 13}>{`${i + 1}:00 PM`}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Individual event reminder toggle */}
+                  <div
+                    onClick={() => {
+                      const next = !keyDateIndividualOn
+                      setKeyDateIndividualOn(next)
+                      setKeyDateIndividualEnabled(next)
+                      toast(next ? 'Individual key date reminders enabled.' : 'Individual key date reminders disabled.', 'info')
+                    }}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem',
+                      padding: '0.65rem 0.85rem', borderRadius: '10px', cursor: 'pointer', userSelect: 'none',
+                      background: keyDateIndividualOn ? 'rgba(245,158,11,0.08)' : 'var(--surface)',
+                      border: `1px solid ${keyDateIndividualOn ? 'rgba(245,158,11,0.25)' : 'var(--surface-border)'}`,
+                      transition: 'all 0.25s ease',
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-primary)' }}>Before event starts</div>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-tertiary)', marginTop: '2px' }}>Reminder before key dates that have a specific time</div>
+                    </div>
+                    <div style={{ width: '36px', height: '20px', background: keyDateIndividualOn ? '#f59e0b' : 'var(--text-tertiary)', borderRadius: '10px', position: 'relative', transition: 'all 0.3s', flexShrink: 0 }}>
+                      <div style={{ position: 'absolute', top: '2px', left: keyDateIndividualOn ? '18px' : '2px', width: '16px', height: '16px', borderRadius: '50%', background: '#fff', transition: 'left 0.2s cubic-bezier(0.16, 1, 0.3, 1)', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+                    </div>
+                  </div>
+
+                  {/* Individual lead time selector */}
+                  {keyDateIndividualOn && (
+                    <div style={{ paddingLeft: '0.5rem' }}>
+                      <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-tertiary)', marginBottom: '0.35rem' }}>How early?</label>
+                      <select
+                        value={keyDateIndividualLeadMins}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value)
+                          setKeyDateIndividualLeadMinsState(val)
+                          setKeyDateIndividualLeadMins(val)
+                          toast(`Key date lead time set to ${val} minutes.`, 'info')
+                        }}
+                        style={{ width: '100%', maxWidth: '220px', padding: '0.55rem 0.7rem', borderRadius: '8px', background: 'var(--surface)', border: '1px solid var(--surface-border)', color: 'var(--text-primary)', fontSize: '0.82rem' }}
+                      >
+                        <option value={5}>5 minutes before</option>
+                        <option value={10}>10 minutes before</option>
+                        <option value={15}>15 minutes before</option>
+                        <option value={30}>30 minutes before</option>
+                        <option value={60}>1 hour before</option>
+                      </select>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+            </div>
+          )}
         </div>
       </div>
 

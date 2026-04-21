@@ -13,6 +13,40 @@ type ImportantDateInput = {
 
 const DATE_ONLY_RE = /^(\d{4})-(\d{2})-(\d{2})$/
 const DATE_TIME_RE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/
+const DATE_KEY_PREFIX_RE = /^(\d{4}-\d{2}-\d{2})/
+
+function toUTCDateKey(date: Date): string {
+  const y = date.getUTCFullYear()
+  const m = String(date.getUTCMonth() + 1).padStart(2, '0')
+  const d = String(date.getUTCDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+function normalizeDateKey(value: string | Date): string | null {
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return null
+    return toUTCDateKey(value)
+  }
+
+  const raw = value.trim()
+  const prefixMatch = raw.match(DATE_KEY_PREFIX_RE)
+  if (prefixMatch) return prefixMatch[1]
+
+  const parsed = new Date(raw)
+  if (Number.isNaN(parsed.getTime())) return null
+  return toUTCDateKey(parsed)
+}
+
+function getUTCDayBounds(value: string | Date): { start: Date; end: Date } | null {
+  const dateKey = normalizeDateKey(value)
+  if (!dateKey) return null
+
+  const [year, month, day] = dateKey.split('-').map(Number)
+  const start = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0))
+  const end = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999))
+
+  return { start, end }
+}
 
 function parseImportantDateInput(value: string): Date {
   const dateTimeMatch = value.match(DATE_TIME_RE)
@@ -49,6 +83,26 @@ export async function getImportantDates() {
     where: { 
       userId,
       id: { not: 'cache-bust' } // Bypasses PgBouncer prepared statement cache
+    },
+    orderBy: { date: 'asc' },
+  })
+}
+
+export async function getImportantDatesForDate(date: string | Date) {
+  const userId = await getUserId()
+  if (!userId) return []
+
+  const bounds = getUTCDayBounds(date)
+  if (!bounds) return []
+
+  return await prisma.importantDate.findMany({
+    where: {
+      userId,
+      date: {
+        gte: bounds.start,
+        lte: bounds.end,
+      },
+      id: { not: 'cache-bust' },
     },
     orderBy: { date: 'asc' },
   })
