@@ -24,6 +24,19 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
     return () => window.removeEventListener('resize', check)
   }, [])
 
+  useEffect(() => {
+    if (!isMobile) {
+      document.body.classList.remove('post-login-mobile')
+      return
+    }
+
+    document.body.classList.add('post-login-mobile')
+
+    return () => {
+      document.body.classList.remove('post-login-mobile')
+    }
+  }, [isMobile])
+
   // Close sidebar when route changes (fixes the X staying after nav)
   useEffect(() => {
     const sidebar = document.querySelector('.sidebar')
@@ -52,7 +65,7 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
 
   return (
     <main
-      className="main-content"
+      className="main-content post-login-shell"
       style={{
         marginLeft: isMobile ? 0 : (collapsed ? '72px' : '260px'),
         transition: 'margin-left 0.3s cubic-bezier(0.16, 1, 0.3, 1)',

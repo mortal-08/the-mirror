@@ -988,6 +988,26 @@ label { font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); lette
 
   /* Motion stack spacing */
   .motion-stack { gap: 1rem; }
+
+  /* Post-login pages: fully static background and no entrance/ripple animations on mobile */
+  body.post-login-mobile::before {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  body.post-login-mobile::after {
+    animation: none !important;
+  }
+
+  body.post-login-mobile .post-login-shell .reveal-up,
+  body.post-login-mobile .post-login-shell .nav-orb::after {
+    animation: none !important;
+  }
+
+  body.post-login-mobile .post-login-shell .reveal-up {
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }
 
 @media (max-width: 480px) {

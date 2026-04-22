@@ -320,6 +320,7 @@ export default function DashboardClient({ stats, categories, recentEntries, toda
   const [journalMood, setJournalMood] = useState(todayJournal?.mood || '')
   const [journalSaving, setJournalSaving] = useState(false)
   const [hoveredOrb, setHoveredOrb] = useState<string | null>(null)
+  const [isMobileViewport, setIsMobileViewport] = useState(false)
   const [particles, setParticles] = useState<{x:number;y:number;size:number;dur:number;del:number}[]>([])
   const [showJournalEditor, setShowJournalEditor] = useState(false)
 
@@ -328,14 +329,21 @@ export default function DashboardClient({ stats, categories, recentEntries, toda
     return () => clearInterval(interval)
   }, [])
 
+  useEffect(() => {
+    const check = () => setIsMobileViewport(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+
   // Generate particles once
   useEffect(() => {
-    const particleCount = window.innerWidth < 768 ? 0 : 25
+    const particleCount = isMobileViewport ? 0 : 25
     setParticles(Array.from({ length: particleCount }, () => ({
       x: Math.random() * 100, y: Math.random() * 100,
       size: Math.random() * 5 + 2, dur: Math.random() * 15 + 10, del: Math.random() * 5,
     })))
-  }, [])
+  }, [isMobileViewport])
 
   const quote = QUOTES[quoteIdx]
   const shuffleQuote = () => setQuoteIdx((quoteIdx + 1 + Math.floor(Math.random() * (QUOTES.length - 1))) % QUOTES.length)
@@ -379,9 +387,13 @@ export default function DashboardClient({ stats, categories, recentEntries, toda
         ))}
 
         {/* Rings */}
-        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 280, height: 280, borderRadius: '50%', border: '1px solid var(--surface-border)', opacity: 0.25, animation: 'ringPulse 4s ease-in-out infinite', willChange: 'transform, opacity' }} />
-        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 420, height: 420, borderRadius: '50%', border: '1px solid var(--surface-border)', opacity: 0.12, animation: 'ringPulse 4s ease-in-out 1s infinite', willChange: 'transform, opacity' }} />
-        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 560, height: 560, borderRadius: '50%', border: '1px solid var(--surface-border)', opacity: 0.06, animation: 'ringPulse 4s ease-in-out 2s infinite', willChange: 'transform, opacity' }} />
+        {!isMobileViewport && (
+          <>
+            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 280, height: 280, borderRadius: '50%', border: '1px solid var(--surface-border)', opacity: 0.25, animation: 'ringPulse 4s ease-in-out infinite', willChange: 'transform, opacity' }} />
+            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 420, height: 420, borderRadius: '50%', border: '1px solid var(--surface-border)', opacity: 0.12, animation: 'ringPulse 4s ease-in-out 1s infinite', willChange: 'transform, opacity' }} />
+            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 560, height: 560, borderRadius: '50%', border: '1px solid var(--surface-border)', opacity: 0.06, animation: 'ringPulse 4s ease-in-out 2s infinite', willChange: 'transform, opacity' }} />
+          </>
+        )}
 
         {/* Clock */}
         <LiveClock />
@@ -413,7 +425,7 @@ export default function DashboardClient({ stats, categories, recentEntries, toda
                   cursor: 'pointer', transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
                   transform: isHovered ? 'scale(1.12) translateY(-6px)' : 'scale(1)',
                   boxShadow: isHovered ? `0 12px 40px ${orb.color}30` : 'var(--shadow-sm)',
-                  animation: `orbFloat 3s ease-in-out ${NAV_ORBS.indexOf(orb) * 0.35}s infinite alternate`,
+                  animation: isMobileViewport ? 'none' : `orbFloat 3s ease-in-out ${NAV_ORBS.indexOf(orb) * 0.35}s infinite alternate`,
                   color: isHovered ? orb.color : 'var(--text-secondary)',
                   fontFamily: 'var(--font-sans)',
                   willChange: 'transform, opacity',
