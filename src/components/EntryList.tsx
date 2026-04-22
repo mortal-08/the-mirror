@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import { deleteTimeEntry, updateTimeEntry } from '@/actions/timeEntries'
 import { useToast } from '@/components/ToastProvider'
 import { formatDistanceToNow, format, isToday, isYesterday } from 'date-fns'
@@ -20,7 +20,7 @@ function groupByDate(entries: any[]) {
   return groups
 }
 
-export default function EntryList({ initialEntries, categories }: { initialEntries: any[]; categories: any[] }) {
+const EntryList = ({ initialEntries, categories }: { initialEntries: any[]; categories: any[] }) => {
   const { toast } = useToast()
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editDesc, setEditDesc] = useState('')
@@ -122,3 +122,5 @@ export default function EntryList({ initialEntries, categories }: { initialEntri
     </div>
   )
 }
+
+export default memo(EntryList)

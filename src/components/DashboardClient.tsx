@@ -139,86 +139,84 @@ function extractTimeStr(value: string | Date): string | null {
   return UTC_TIME_FORMATTER.format(d)
 }
 
-export default function DashboardClient({ stats, categories, recentEntries, todayJournal, todayBlocks = [], upcomingDates = [] }: {
-  stats: any; categories: any[]; recentEntries: any[]; todayJournal: any; todayBlocks?: any[]; upcomingDates?: any[]
-}) {
-  const { toast } = useToast()
-  const router = useRouter()
-  const [now, setNow] = useState(new Date())
-  const [journalText, setJournalText] = useState(todayJournal?.content || '')
-  const [journalMood, setJournalMood] = useState(todayJournal?.mood || '')
-  const [journalSaving, setJournalSaving] = useState(false)
-  const [quoteIdx, setQuoteIdx] = useState(0)
-  const [hoveredOrb, setHoveredOrb] = useState<string | null>(null)
-  const [particles, setParticles] = useState<{x:number;y:number;size:number;dur:number;del:number}[]>([])
-  const [showJournalEditor, setShowJournalEditor] = useState(false)
+function toLocalDateKey(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function computeQuoteIndex(date: Date): number {
+  const hourIdx = date.getHours() + (date.getDate() * 31)
+  return hourIdx % QUOTES.length
+}
+
+function formatMinutes(totalMinutes: number): string {
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+}
+
+function formatStartsIn(totalMinutes: number): string {
+  if (totalMinutes <= 0) return 'Starts now'
+
+  if (totalMinutes < 1) return 'Starts in <1m'
+
+  const wholeMinutes = Math.ceil(totalMinutes)
+  const hours = Math.floor(wholeMinutes / 60)
+  const minutes = wholeMinutes % 60
+
+  if (hours === 0) return `Starts in ${minutes}m`
+  if (minutes === 0) return `Starts in ${hours}h`
+  return `Starts in ${hours}h ${minutes}m`
+}
+
+function extractBlockDateKey(planDate: unknown): string {
+  if (typeof planDate === 'string') return planDate.slice(0, 10)
+  if (planDate instanceof Date) return planDate.toISOString().slice(0, 10)
+  return ''
+}
+
+function LiveClock() {
+  const [now, setNow] = useState(() => new Date())
 
   useEffect(() => {
     const interval = setInterval(() => setNow(new Date()), 1000)
     return () => clearInterval(interval)
   }, [])
 
-  // Pick quote based on hour, changes every hour
-  useEffect(() => {
-    const hourIdx = now.getHours() + (now.getDate() * 31)
-    setQuoteIdx(hourIdx % QUOTES.length)
-  }, [Math.floor(now.getTime() / 3600000)])
+  const timeStr = now.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  })
 
-  // Generate particles once
+  const dateStr = now.toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  })
+
+  return (
+    <div style={{ position: 'relative', zIndex: 2 }}>
+      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'clamp(2.2rem, 8vw, 4rem)', fontWeight: 800, letterSpacing: '0.04em', background: 'var(--accent-gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', lineHeight: 1 }}>
+        {timeStr}
+      </div>
+      <p style={{ color: 'var(--text-secondary)', fontSize: 'clamp(0.8rem, 2.5vw, 1rem)', marginTop: '0.4rem' }}>{dateStr}</p>
+    </div>
+  )
+}
+
+function LiveFocusWidget({ todayBlocks, onOpenRoutine }: { todayBlocks: any[]; onOpenRoutine: () => void }) {
+  const [now, setNow] = useState(() => new Date())
+
   useEffect(() => {
-    setParticles(Array.from({ length: 25 }, () => ({
-      x: Math.random() * 100, y: Math.random() * 100,
-      size: Math.random() * 5 + 2, dur: Math.random() * 15 + 10, del: Math.random() * 5,
-    })))
+    const interval = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(interval)
   }, [])
 
-  const quote = QUOTES[quoteIdx]
-  const shuffleQuote = () => setQuoteIdx((quoteIdx + 1 + Math.floor(Math.random() * (QUOTES.length - 1))) % QUOTES.length)
-
-  const todayHours = (stats.todaySeconds / 3600).toFixed(1)
-  const weekHours = (stats.weekSeconds / 3600).toFixed(1)
-  const dailyGoalHours = (stats.dailyGoal / 3600).toFixed(0)
-  const weeklyGoalHours = (stats.weeklyGoal / 3600).toFixed(0)
-  const todayPct = Math.min((stats.todaySeconds / stats.dailyGoal) * 100, 100)
-  const weekPct = Math.min((stats.weekSeconds / stats.weeklyGoal) * 100, 100)
-  const todayDashboardDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const todayKey = `${todayDashboardDate.getFullYear()}-${String(todayDashboardDate.getMonth() + 1).padStart(2, '0')}-${String(todayDashboardDate.getDate()).padStart(2, '0')}`
-
-  // Journal prompt
-  const journalPromptIdx = useMemo(() => {
-    return (now.getDate() + now.getMonth() * 31) % JOURNAL_PROMPTS.length
-  }, [now.getDate(), now.getMonth()])
-  const journalPrompt = JOURNAL_PROMPTS[journalPromptIdx]
-
-  const hasJournalToday = !!todayJournal || journalText.trim().length > 0
-
-  const formatMinutes = (totalMinutes: number): string => {
-    const hours = Math.floor(totalMinutes / 60)
-    const minutes = totalMinutes % 60
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
-  }
-
-  const formatStartsIn = (totalMinutes: number): string => {
-    if (totalMinutes <= 0) return 'Starts now'
-
-    if (totalMinutes < 1) return 'Starts in <1m'
-
-    const wholeMinutes = Math.ceil(totalMinutes)
-    const hours = Math.floor(wholeMinutes / 60)
-    const minutes = wholeMinutes % 60
-
-    if (hours === 0) return `Starts in ${minutes}m`
-    if (minutes === 0) return `Starts in ${hours}h`
-    return `Starts in ${hours}h ${minutes}m`
-  }
-
-  const extractBlockDateKey = (planDate: unknown): string => {
-    if (typeof planDate === 'string') return planDate.slice(0, 10)
-    if (planDate instanceof Date) return planDate.toISOString().slice(0, 10)
-    return ''
-  }
-
-  const localTodayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  const localTodayKey = toLocalDateKey(now)
 
   const currentDayBlocks = useMemo(
     () => (todayBlocks || []).filter((block) => extractBlockDateKey(block.planDate) === localTodayKey),
@@ -256,8 +254,107 @@ export default function DashboardClient({ stats, categories, recentEntries, toda
     return Math.min(Math.max(raw, 0), 100)
   }, [activeBlock, nowMinutes])
 
-  const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
-  const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+  return (
+    <div className="glass" style={{ padding: '2rem', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+        <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0, fontSize: '0.9rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+          <Timer size={18} color="var(--accent-primary)" /> Current Focus
+        </h3>
+        <button onClick={onOpenRoutine} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem', color: 'var(--accent-primary)', background: 'transparent', border: 'none', cursor: 'pointer', fontWeight: 600, textTransform: 'uppercase' }}>
+          Full Routine <ChevronRight size={14} />
+        </button>
+      </div>
+
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', background: 'var(--surface)', borderRadius: '16px', padding: '1.5rem', border: '1px solid var(--surface-border)', position: 'relative', overflow: 'hidden' }}>
+        {activeBlock ? (
+          <>
+            <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: `${activeProgress}%`, background: 'var(--accent-primary)', opacity: 0.1, zIndex: 0 }} />
+            <div style={{ zIndex: 1 }}>
+              <p style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--accent-primary)', fontWeight: 700, marginBottom: '0.5rem' }}>In Progress</p>
+              <p style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem', lineHeight: 1.2 }}>{activeBlock.task}</p>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
+                {formatMinutes(activeBlock.startMinutes)} <span style={{ opacity: 0.5, margin: '0 4px' }}>—</span> {formatMinutes(activeBlock.endMinutes)}
+              </p>
+            </div>
+          </>
+        ) : nextBlock ? (
+          <>
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'var(--accent-secondary)', opacity: 0.8, zIndex: 0 }} />
+            <div style={{ zIndex: 1 }}>
+              <p style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--accent-secondary)', fontWeight: 700, marginBottom: '0.5rem' }}>Up Next</p>
+              <p style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem', lineHeight: 1.2 }}>{nextBlock.task}</p>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
+                {formatMinutes(nextBlock.startMinutes)} <span style={{ opacity: 0.5, margin: '0 4px' }}>—</span> {formatMinutes(nextBlock.endMinutes)}
+              </p>
+              {minutesUntilNextBlock !== null && (
+                <p style={{ fontSize: '0.78rem', marginTop: '0.5rem', color: 'var(--accent-secondary)', fontWeight: 700, letterSpacing: '0.04em' }}>
+                  {formatStartsIn(minutesUntilNextBlock)}
+                </p>
+              )}
+            </div>
+          </>
+        ) : (
+          <div style={{ textAlign: 'center', color: 'var(--text-tertiary)', zIndex: 1 }}>
+            <Timer size={32} style={{ opacity: 0.4, margin: '0 auto 1rem auto' }} />
+            <p style={{ fontSize: '0.9rem' }}>{sortedTodayBlocks.length > 0 ? 'No active or upcoming blocks right now.' : 'No routine block scheduled for today.'}</p>
+            <p style={{ fontSize: '0.75rem', marginTop: '0.5rem' }}>{sortedTodayBlocks.length > 0 ? 'You have completed all planned blocks for now.' : 'Set your next focus block in Routine.'}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export default function DashboardClient({ stats, categories, recentEntries, todayJournal, todayBlocks = [], upcomingDates = [] }: {
+  stats: any; categories: any[]; recentEntries: any[]; todayJournal: any; todayBlocks?: any[]; upcomingDates?: any[]
+}) {
+  const { toast } = useToast()
+  const router = useRouter()
+  const [todayDashboardDate] = useState(() => {
+    const current = new Date()
+    return new Date(current.getFullYear(), current.getMonth(), current.getDate())
+  })
+  const localTodayKey = toLocalDateKey(todayDashboardDate)
+  const [quoteIdx, setQuoteIdx] = useState(() => computeQuoteIndex(new Date()))
+  const [journalText, setJournalText] = useState(todayJournal?.content || '')
+  const [journalMood, setJournalMood] = useState(todayJournal?.mood || '')
+  const [journalSaving, setJournalSaving] = useState(false)
+  const [hoveredOrb, setHoveredOrb] = useState<string | null>(null)
+  const [particles, setParticles] = useState<{x:number;y:number;size:number;dur:number;del:number}[]>([])
+  const [showJournalEditor, setShowJournalEditor] = useState(false)
+
+  useEffect(() => {
+    const interval = setInterval(() => setQuoteIdx(computeQuoteIndex(new Date())), 60 * 60 * 1000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Generate particles once
+  useEffect(() => {
+    const particleCount = window.innerWidth < 768 ? 0 : 25
+    setParticles(Array.from({ length: particleCount }, () => ({
+      x: Math.random() * 100, y: Math.random() * 100,
+      size: Math.random() * 5 + 2, dur: Math.random() * 15 + 10, del: Math.random() * 5,
+    })))
+  }, [])
+
+  const quote = QUOTES[quoteIdx]
+  const shuffleQuote = () => setQuoteIdx((quoteIdx + 1 + Math.floor(Math.random() * (QUOTES.length - 1))) % QUOTES.length)
+
+  const todayHours = (stats.todaySeconds / 3600).toFixed(1)
+  const weekHours = (stats.weekSeconds / 3600).toFixed(1)
+  const dailyGoalHours = (stats.dailyGoal / 3600).toFixed(0)
+  const weeklyGoalHours = (stats.weeklyGoal / 3600).toFixed(0)
+  const todayPct = Math.min((stats.todaySeconds / stats.dailyGoal) * 100, 100)
+  const weekPct = Math.min((stats.weekSeconds / stats.weeklyGoal) * 100, 100)
+  const todayKey = toLocalDateKey(todayDashboardDate)
+
+  // Journal prompt
+  const journalPromptIdx = useMemo(() => {
+    return (todayDashboardDate.getDate() + todayDashboardDate.getMonth() * 31) % JOURNAL_PROMPTS.length
+  }, [todayDashboardDate])
+  const journalPrompt = JOURNAL_PROMPTS[journalPromptIdx]
+
+  const hasJournalToday = !!todayJournal || journalText.trim().length > 0
 
   const saveJournal = async () => {
     if (!journalText.trim()) return
@@ -278,21 +375,16 @@ export default function DashboardClient({ stats, categories, recentEntries, toda
         
         {/* Particles */}
         {particles.map((p, i) => (
-          <div key={i} style={{ position: 'absolute', left: `${p.x}%`, top: `${p.y}%`, width: p.size, height: p.size, borderRadius: '50%', background: 'var(--accent-primary)', opacity: 0.12, animation: `particleFloat ${p.dur}s ease-in-out ${p.del}s infinite alternate`, pointerEvents: 'none' }} />
+          <div key={i} style={{ position: 'absolute', left: `${p.x}%`, top: `${p.y}%`, width: p.size, height: p.size, borderRadius: '50%', background: 'var(--accent-primary)', opacity: 0.12, animation: `particleFloat ${p.dur}s ease-in-out ${p.del}s infinite alternate`, pointerEvents: 'none', willChange: 'transform, opacity' }} />
         ))}
 
         {/* Rings */}
-        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 280, height: 280, borderRadius: '50%', border: '1px solid var(--surface-border)', opacity: 0.25, animation: 'ringPulse 4s ease-in-out infinite' }} />
-        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 420, height: 420, borderRadius: '50%', border: '1px solid var(--surface-border)', opacity: 0.12, animation: 'ringPulse 4s ease-in-out 1s infinite' }} />
-        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 560, height: 560, borderRadius: '50%', border: '1px solid var(--surface-border)', opacity: 0.06, animation: 'ringPulse 4s ease-in-out 2s infinite' }} />
+        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 280, height: 280, borderRadius: '50%', border: '1px solid var(--surface-border)', opacity: 0.25, animation: 'ringPulse 4s ease-in-out infinite', willChange: 'transform, opacity' }} />
+        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 420, height: 420, borderRadius: '50%', border: '1px solid var(--surface-border)', opacity: 0.12, animation: 'ringPulse 4s ease-in-out 1s infinite', willChange: 'transform, opacity' }} />
+        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 560, height: 560, borderRadius: '50%', border: '1px solid var(--surface-border)', opacity: 0.06, animation: 'ringPulse 4s ease-in-out 2s infinite', willChange: 'transform, opacity' }} />
 
         {/* Clock */}
-        <div style={{ position: 'relative', zIndex: 2 }}>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'clamp(2.2rem, 8vw, 4rem)', fontWeight: 800, letterSpacing: '0.04em', background: 'var(--accent-gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', lineHeight: 1 }}>
-            {timeStr}
-          </div>
-          <p style={{ color: 'var(--text-secondary)', fontSize: 'clamp(0.8rem, 2.5vw, 1rem)', marginTop: '0.4rem' }}>{dateStr}</p>
-        </div>
+        <LiveClock />
 
         {/* Wisdom Quote with Shuffle */}
         <div style={{ position: 'relative', zIndex: 2, maxWidth: 460, marginTop: '1rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0 0.5rem' }}>
@@ -324,6 +416,7 @@ export default function DashboardClient({ stats, categories, recentEntries, toda
                   animation: `orbFloat 3s ease-in-out ${NAV_ORBS.indexOf(orb) * 0.35}s infinite alternate`,
                   color: isHovered ? orb.color : 'var(--text-secondary)',
                   fontFamily: 'var(--font-sans)',
+                  willChange: 'transform, opacity',
                 }}>
                 <Icon size={18} />
                 <span style={{ fontSize: '0.5rem', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>{orb.label}</span>
@@ -407,53 +500,7 @@ export default function DashboardClient({ stats, categories, recentEntries, toda
       {/* ═══ REALTIME FOCUS & TODOS ═══ */}
       <div className="grid gap-6 xl:grid-cols-2 reveal-up" style={{ '--reveal-delay': '170ms' } as React.CSSProperties}>
         {/* Active Focus Widget */}
-        <div className="glass" style={{ padding: '2rem', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0, fontSize: '0.9rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
-              <Timer size={18} color="var(--accent-primary)" /> Current Focus
-            </h3>
-            <button onClick={() => router.push('/routine')} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem', color: 'var(--accent-primary)', background: 'transparent', border: 'none', cursor: 'pointer', fontWeight: 600, textTransform: 'uppercase' }}>
-              Full Routine <ChevronRight size={14} />
-            </button>
-          </div>
-
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', background: 'var(--surface)', borderRadius: '16px', padding: '1.5rem', border: '1px solid var(--surface-border)', position: 'relative', overflow: 'hidden' }}>
-            {activeBlock ? (
-              <>
-                <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: `${activeProgress}%`, background: 'var(--accent-primary)', opacity: 0.1, zIndex: 0 }} />
-                <div style={{ zIndex: 1 }}>
-                  <p style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--accent-primary)', fontWeight: 700, marginBottom: '0.5rem' }}>In Progress</p>
-                  <p style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem', lineHeight: 1.2 }}>{activeBlock.task}</p>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
-                    {formatMinutes(activeBlock.startMinutes)} <span style={{ opacity: 0.5, margin: '0 4px' }}>—</span> {formatMinutes(activeBlock.endMinutes)}
-                  </p>
-                </div>
-              </>
-            ) : nextBlock ? (
-              <>
-                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: 'var(--accent-secondary)', opacity: 0.8, zIndex: 0 }} />
-                <div style={{ zIndex: 1 }}>
-                  <p style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--accent-secondary)', fontWeight: 700, marginBottom: '0.5rem' }}>Up Next</p>
-                  <p style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem', lineHeight: 1.2 }}>{nextBlock.task}</p>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
-                    {formatMinutes(nextBlock.startMinutes)} <span style={{ opacity: 0.5, margin: '0 4px' }}>—</span> {formatMinutes(nextBlock.endMinutes)}
-                  </p>
-                  {minutesUntilNextBlock !== null && (
-                    <p style={{ fontSize: '0.78rem', marginTop: '0.5rem', color: 'var(--accent-secondary)', fontWeight: 700, letterSpacing: '0.04em' }}>
-                      {formatStartsIn(minutesUntilNextBlock)}
-                    </p>
-                  )}
-                </div>
-              </>
-            ) : (
-              <div style={{ textAlign: 'center', color: 'var(--text-tertiary)', zIndex: 1 }}>
-                <Timer size={32} style={{ opacity: 0.4, margin: '0 auto 1rem auto' }} />
-                <p style={{ fontSize: '0.9rem' }}>{sortedTodayBlocks.length > 0 ? 'No active or upcoming blocks right now.' : 'No routine block scheduled for today.'}</p>
-                <p style={{ fontSize: '0.75rem', marginTop: '0.5rem' }}>{sortedTodayBlocks.length > 0 ? 'You have completed all planned blocks for now.' : 'Set your next focus block in Routine.'}</p>
-              </div>
-            )}
-          </div>
-        </div>
+        <LiveFocusWidget todayBlocks={todayBlocks} onOpenRoutine={() => router.push('/routine')} />
 
         {/* Accountability Todos */}
         <div>

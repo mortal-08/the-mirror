@@ -1,6 +1,6 @@
 'use client'
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import { FormEvent, memo, useCallback, useEffect, useMemo, useState } from 'react'
 import { CheckCircle2, Circle, ListTodo, Loader2, Plus, Trash2, Check } from 'lucide-react'
 import { createTodo, deleteTodo, getTodos, toggleTodo } from '@/actions/todos'
 import { useToast } from '@/components/ToastProvider'
@@ -24,12 +24,12 @@ type TodoListProps = {
 
 type TodoFilter = 'ALL' | 'OPEN' | 'DONE'
 
-export default function TodoList({
+const TodoList = ({
   selectedDate,
   title = "Today's Accountability Todos",
   compact = false,
   showDateBadge = false,
-}: TodoListProps) {
+}: TodoListProps) => {
   const { toast } = useToast()
   const [todos, setTodos] = useState<TodoItem[]>([])
   const [newTask, setNewTask] = useState('')
@@ -315,3 +315,5 @@ export default function TodoList({
     </section>
   )
 }
+
+export default memo(TodoList)
