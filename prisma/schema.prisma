@@ -19,6 +19,8 @@ model User {
   journals     Journal[]
   todos        Todo[]
   routineBlocks RoutineBlock[]
+  routineTemplates RoutineTemplate[]
+  reflections  Reflection[]
   importantDates ImportantDate[]
   pushSubscriptions PushSubscription[]
   createdAt    DateTime    @default(now())
@@ -53,17 +55,61 @@ model Todo {
 }
 
 model RoutineBlock {
-  id           String   @id @default(cuid())
-  userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  planDate     DateTime @db.Date
+  id            String            @id @default(cuid())
+  userId        String
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planDate      DateTime          @db.Date
+  task          String
+  startMinutes  Int
+  endMinutes    Int
+  templateId    String?
+  template      RoutineTemplate?  @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  notifyVersion Int               @default(1)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([userId, planDate])
+}
+
+model RoutineTemplate {
+  id        String                @id @default(cuid())
+  userId    String
+  user      User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  days      Int[]                 // 0=Sun, 1=Mon, ..., 6=Sat
+  isActive  Boolean               @default(true)
+  blocks    RoutineTemplateBlock[]
+  appliedBlocks RoutineBlock[]
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+
+  @@index([userId])
+}
+
+model RoutineTemplateBlock {
+  id           String          @id @default(cuid())
+  templateId   String
+  template     RoutineTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
   task         String
   startMinutes Int
   endMinutes   Int
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
 
-  @@index([userId, planDate])
+  @@index([templateId])
+}
+
+model Reflection {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date           DateTime @db.Date
+  timeSlot       Int      // startMinutes value this reflection is for
+  content        String
+  routineBlockId String?  // optional link to the routine block
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([userId, date, timeSlot])
+  @@index([userId, date])
 }
 
 model Tag {

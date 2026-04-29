@@ -1,12 +1,24 @@
 'use client'
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
-import { CalendarDays, Check, Clock3, GripVertical, Loader2, Pencil, Plus, Trash2, X, ChevronLeft, ChevronRight, Activity } from 'lucide-react'
+import { CalendarDays, Check, Clock3, GripVertical, Loader2, Pencil, Plus, Trash2, X, ChevronLeft, ChevronRight, Activity, Copy, ToggleLeft, ToggleRight, Repeat } from 'lucide-react'
 import { createRoutineBlock, deleteRoutineBlock, getRoutineBlocks, reorderRoutineBlocks, updateRoutineBlock } from '@/actions/routines'
+import { getRoutineTemplates, createRoutineTemplate, deleteRoutineTemplate, updateRoutineTemplate, applyTemplateToDate, applyTemplatesForDate } from '@/actions/templates'
 import { useToast } from '@/components/ToastProvider'
 import TodoList from '@/components/TodoList'
 import DateTimePicker from '@/components/DateTimePicker'
 import { ROUTINE_RELOAD_EVENT } from '@/lib/notifications'
+
+const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const DAY_LABELS_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+type RoutineTemplate = {
+  id: string
+  name: string
+  days: number[]
+  isActive: boolean
+  blocks: { id: string; task: string; startMinutes: number; endMinutes: number }[]
+}
 
 type RoutineBlock = {
   id: string
@@ -84,6 +96,17 @@ export default function RoutinePlanner() {
   const [pickerTarget, setPickerTarget] = useState<'createStart' | 'createEnd' | 'editStart' | 'editEnd' | 'routineDate' | null>(null)
   const [pickerInitialDate, setPickerInitialDate] = useState<Date>(new Date())
 
+  // Template state
+  const [templates, setTemplates] = useState<RoutineTemplate[]>([])
+  const [showTemplatePanel, setShowTemplatePanel] = useState(false)
+  const [isLoadingTemplates, setIsLoadingTemplates] = useState(false)
+  const [newTemplateName, setNewTemplateName] = useState('')
+  const [newTemplateDays, setNewTemplateDays] = useState<number[]>([1, 2, 3, 4, 5]) // Mon-Fri default
+  const [isCreatingTemplate, setIsCreatingTemplate] = useState(false)
+  const [applyingTemplateId, setApplyingTemplateId] = useState<string | null>(null)
+  const [deletingTemplateId, setDeletingTemplateId] = useState<string | null>(null)
+  const [hasAutoApplied, setHasAutoApplied] = useState<Set<string>>(new Set())
+
   const openPicker = (target: 'createStart' | 'createEnd' | 'editStart' | 'editEnd', currentStr: string) => {
     const [h, m] = currentStr.split(':').map(Number)
     const d = new Date()
@@ -148,6 +171,41 @@ export default function RoutinePlanner() {
     loadSelected()
     return () => { active = false }
   }, [loadBlocksForDate, selectedDate, selectedDateKey])
+
+  // Load templates on mount
+  useEffect(() => {
+    const loadTemplates = async () => {
+      setIsLoadingTemplates(true)
+      const result = await getRoutineTemplates()
+      if ('error' in result) {
+        toast(result.error, 'error')
+      } else {
+        setTemplates(result.data as unknown as RoutineTemplate[])
+      }
+      setIsLoadingTemplates(false)
+    }
+    loadTemplates()
+  }, [toast])
+
+  // Auto-apply templates when date changes and no blocks exist
+  useEffect(() => {
+    const key = selectedDateKey
+    if (hasAutoApplied.has(key) || isLoadingSelected) return
+
+    if (selectedBlocks.length === 0 && templates.length > 0) {
+      const autoApply = async () => {
+        const result = await applyTemplatesForDate(key)
+        if ('success' in result && result.data.applied > 0) {
+          const blocks = await loadBlocksForDate(selectedDate)
+          setSelectedBlocks(blocks)
+          toast(`Applied ${result.data.applied} blocks from ${result.data.templates} template(s).`, 'success')
+          window.dispatchEvent(new CustomEvent(ROUTINE_RELOAD_EVENT))
+        }
+      }
+      autoApply()
+    }
+    setHasAutoApplied((prev) => new Set(prev).add(key))
+  }, [selectedDateKey, selectedBlocks.length, isLoadingSelected, templates.length, loadBlocksForDate, selectedDate, toast, hasAutoApplied])
 
   const nowMinutes = getCurrentDayMinutes(now)
 
@@ -270,6 +328,78 @@ export default function RoutinePlanner() {
     const next = new Date(selectedDate)
     next.setDate(next.getDate() + days)
     setSelectedDate(normalizeToLocalDay(next))
+  }
+
+  // Template handlers
+  const handleCreateTemplate = async () => {
+    if (isCreatingTemplate) return
+    const name = newTemplateName.trim()
+    if (!name) { toast('Enter a template name.', 'error'); return }
+    if (newTemplateDays.length === 0) { toast('Select at least one day.', 'error'); return }
+    if (selectedBlocks.length === 0) { toast('Add some routine blocks first, then save as template.', 'error'); return }
+
+    setIsCreatingTemplate(true)
+    const blocks = selectedBlocks.map((b) => ({
+      task: b.task,
+      startMinutes: b.startMinutes,
+      endMinutes: b.endMinutes,
+    }))
+
+    const result = await createRoutineTemplate(name, newTemplateDays, blocks)
+    if ('error' in result) {
+      toast(result.error, 'error')
+    } else {
+      setTemplates((prev) => [result.data as unknown as RoutineTemplate, ...prev])
+      setNewTemplateName('')
+      toast('Template created! Blocks will auto-apply on selected days.', 'success')
+    }
+    setIsCreatingTemplate(false)
+  }
+
+  const handleApplyTemplate = async (templateId: string) => {
+    setApplyingTemplateId(templateId)
+    const result = await applyTemplateToDate(templateId, dateKey(selectedDate))
+    if ('error' in result) {
+      toast(result.error, 'error')
+    } else {
+      const blocks = await loadBlocksForDate(selectedDate)
+      setSelectedBlocks(blocks)
+      window.dispatchEvent(new CustomEvent(ROUTINE_RELOAD_EVENT))
+      if (result.data.applied > 0) {
+        toast(`Applied ${result.data.applied} blocks. ${result.data.skipped > 0 ? `${result.data.skipped} skipped (overlap).` : ''}`, 'success')
+      } else {
+        toast('No blocks applied — all would overlap existing blocks.', 'info')
+      }
+    }
+    setApplyingTemplateId(null)
+  }
+
+  const handleDeleteTemplate = async (templateId: string) => {
+    setDeletingTemplateId(templateId)
+    const result = await deleteRoutineTemplate(templateId)
+    if ('error' in result) {
+      toast(result.error, 'error')
+    } else {
+      setTemplates((prev) => prev.filter((t) => t.id !== templateId))
+      toast('Template deleted.', 'success')
+    }
+    setDeletingTemplateId(null)
+  }
+
+  const handleToggleTemplateActive = async (templateId: string, isActive: boolean) => {
+    const result = await updateRoutineTemplate(templateId, { isActive })
+    if ('error' in result) {
+      toast(result.error, 'error')
+    } else {
+      setTemplates((prev) => prev.map((t) => t.id === templateId ? { ...t, isActive } : t))
+      toast(isActive ? 'Template activated.' : 'Template paused.', 'info')
+    }
+  }
+
+  const toggleTemplateDay = (day: number) => {
+    setNewTemplateDays((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort()
+    )
   }
 
   return (
@@ -412,13 +542,152 @@ export default function RoutinePlanner() {
         </div>
       </section>
 
-      {/* RIGHT COLUMN: Todos */}
-      <section style={{ display: 'flex', flexDirection: 'column' }}>
-         <TodoList
-            selectedDate={selectedDate}
-            title={`Todos for ${isSelectedToday ? 'Today' : selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
-            showDateBadge={false}
-         />
+      {/* RIGHT COLUMN: Templates + Todos */}
+      <section style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+        {/* Template Management Panel */}
+        <div className="glass" style={{ padding: '1.25rem' }}>
+          <button
+            onClick={() => setShowTemplatePanel(!showTemplatePanel)}
+            style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', padding: '0.4rem 0' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Repeat size={16} color="var(--accent-primary)" />
+              <span style={{ fontSize: '0.82rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Recurring Templates</span>
+              {templates.length > 0 && (
+                <span style={{ fontSize: '0.65rem', background: 'var(--accent-primary)', color: 'var(--text-inverse)', borderRadius: '10px', padding: '1px 7px', fontWeight: 700 }}>{templates.length}</span>
+              )}
+            </div>
+            <ChevronRight size={16} style={{ color: 'var(--text-tertiary)', transform: showTemplatePanel ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }} />
+          </button>
+
+          {showTemplatePanel && (
+            <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.85rem', animation: 'superReveal 300ms ease-out forwards' }}>
+
+              {/* Save current blocks as template */}
+              <div style={{ padding: '0.85rem', background: 'var(--surface)', borderRadius: '10px', border: '1px solid var(--surface-border)' }}>
+                <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.5rem' }}>Save current day as template</div>
+                <input
+                  type="text"
+                  value={newTemplateName}
+                  onChange={(e) => setNewTemplateName(e.target.value)}
+                  placeholder="Template name (e.g. Weekday Routine)"
+                  style={{ width: '100%', padding: '0.5rem 0.7rem', background: 'var(--bg-primary)', border: '1px solid var(--surface-border)', borderRadius: '8px', fontSize: '0.8rem', color: 'var(--text-primary)', outline: 'none', marginBottom: '0.5rem' }}
+                />
+
+                {/* Day selector */}
+                <div style={{ display: 'flex', gap: '0.3rem', marginBottom: '0.6rem', flexWrap: 'wrap' }}>
+                  {DAY_LABELS.map((label, idx) => {
+                    const isSelected = newTemplateDays.includes(idx)
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => toggleTemplateDay(idx)}
+                        style={{
+                          padding: '0.3rem 0.55rem', fontSize: '0.68rem', fontWeight: 700, borderRadius: '6px',
+                          border: `1px solid ${isSelected ? 'var(--accent-primary)' : 'var(--surface-border)'}`,
+                          background: isSelected ? 'rgba(0, 255, 204, 0.1)' : 'transparent',
+                          color: isSelected ? 'var(--accent-primary)' : 'var(--text-tertiary)',
+                          cursor: 'pointer', transition: 'all 0.15s',
+                        }}
+                      >
+                        {label}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                <button
+                  onClick={handleCreateTemplate}
+                  disabled={isCreatingTemplate || selectedBlocks.length === 0}
+                  style={{
+                    width: '100%', padding: '0.5rem', fontSize: '0.75rem', fontWeight: 700,
+                    borderRadius: '8px', border: 'none', cursor: 'pointer',
+                    background: selectedBlocks.length > 0 ? 'var(--accent-primary)' : 'var(--surface-hover)',
+                    color: selectedBlocks.length > 0 ? 'var(--text-inverse)' : 'var(--text-tertiary)',
+                    opacity: isCreatingTemplate ? 0.6 : 1, transition: 'all 0.2s',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
+                  }}
+                >
+                  {isCreatingTemplate ? <Loader2 size={14} className="animate-spin" /> : <Copy size={14} />}
+                  {isCreatingTemplate ? 'Saving...' : `Save ${selectedBlocks.length} block(s) as template`}
+                </button>
+              </div>
+
+              {/* Existing templates list */}
+              {isLoadingTemplates ? (
+                <div style={{ display: 'flex', justifyContent: 'center', padding: '1rem' }}>
+                  <Loader2 size={18} className="animate-spin" color="var(--text-tertiary)" />
+                </div>
+              ) : templates.length === 0 ? (
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-tertiary)', textAlign: 'center', padding: '0.75rem' }}>
+                  No templates yet. Create your first routine then save it.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {templates.map((tmpl) => (
+                    <div key={tmpl.id} style={{
+                      padding: '0.7rem 0.85rem', borderRadius: '10px',
+                      background: tmpl.isActive ? 'rgba(0, 255, 204, 0.03)' : 'var(--surface)',
+                      border: `1px solid ${tmpl.isActive ? 'rgba(0, 255, 204, 0.12)' : 'var(--surface-border)'}`,
+                      opacity: tmpl.isActive ? 1 : 0.6,
+                      transition: 'all 0.2s',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                        <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>{tmpl.name}</div>
+                        <div style={{ display: 'flex', gap: '0.2rem' }}>
+                          <button
+                            onClick={() => handleToggleTemplateActive(tmpl.id, !tmpl.isActive)}
+                            title={tmpl.isActive ? 'Pause template' : 'Activate template'}
+                            style={{ background: 'none', border: 'none', color: tmpl.isActive ? 'var(--accent-primary)' : 'var(--text-tertiary)', padding: '0.25rem', cursor: 'pointer' }}
+                          >
+                            {tmpl.isActive ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
+                          </button>
+                          <button
+                            onClick={() => handleApplyTemplate(tmpl.id)}
+                            disabled={applyingTemplateId === tmpl.id}
+                            title="Apply to selected date"
+                            style={{ background: 'none', border: 'none', color: 'var(--accent-secondary)', padding: '0.25rem', cursor: 'pointer', opacity: applyingTemplateId === tmpl.id ? 0.5 : 1 }}
+                          >
+                            {applyingTemplateId === tmpl.id ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                          </button>
+                          <button
+                            onClick={() => handleDeleteTemplate(tmpl.id)}
+                            disabled={deletingTemplateId === tmpl.id}
+                            style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', padding: '0.25rem', cursor: 'pointer' }}
+                            className="hover-text-red"
+                          >
+                            {deletingTemplateId === tmpl.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={13} />}
+                          </button>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.2rem', flexWrap: 'wrap' }}>
+                        {DAY_LABELS.map((label, idx) => (
+                          <span key={idx} style={{
+                            fontSize: '0.6rem', fontWeight: 700, padding: '1px 5px', borderRadius: '4px',
+                            background: tmpl.days.includes(idx) ? 'var(--accent-primary)' : 'var(--surface-hover)',
+                            color: tmpl.days.includes(idx) ? 'var(--text-inverse)' : 'var(--text-tertiary)',
+                          }}>{label}</span>
+                        ))}
+                      </div>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-tertiary)', marginTop: '0.3rem' }}>
+                        {tmpl.blocks.length} block{tmpl.blocks.length !== 1 ? 's' : ''}
+                        {tmpl.blocks.length > 0 && ` · ${formatMinutes(tmpl.blocks[0].startMinutes)} — ${formatMinutes(tmpl.blocks[tmpl.blocks.length - 1].endMinutes)}`}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <TodoList
+           selectedDate={selectedDate}
+           title={`Todos for ${isSelectedToday ? 'Today' : selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
+           showDateBadge={false}
+        />
       </section>
 
       <DateTimePicker

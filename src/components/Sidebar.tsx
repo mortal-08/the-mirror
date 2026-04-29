@@ -9,7 +9,7 @@ import { useTheme } from './ThemeProvider'
 import {
   LayoutDashboard, Timer, History, Settings, LogOut,
   BookOpen, Moon, Sun, Orbit, PanelLeftClose, PanelLeft, BarChart3,
-  CalendarDays, CalendarCheck
+  CalendarDays, CalendarCheck, NotebookPen
 } from 'lucide-react'
 
 const SidebarContext = createContext<{ collapsed: boolean; setCollapsed: (v: boolean) => void }>({ collapsed: false, setCollapsed: () => {} })
@@ -24,6 +24,7 @@ const NAV_ITEMS = [
   { href: '/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/routine', label: 'Routine', icon: CalendarDays },
   { href: '/important-dates', label: 'Key Dates', icon: CalendarCheck },
+  { href: '/reflection', label: 'Reflection', icon: NotebookPen },
   { href: '/settings', label: 'Settings', icon: Settings },
 ]
 

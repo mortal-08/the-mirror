@@ -26,6 +26,7 @@ type RoutineReminderBlock = {
   id: string
   task: string
   startMinutes: number
+  notifyVersion: number
 }
 
 type ImportantDateReminderItem = {
@@ -150,6 +151,7 @@ export default function ReminderScheduler() {
           id: block.id,
           task: block.task,
           startMinutes: block.startMinutes,
+          notifyVersion: (block as any).notifyVersion ?? 1,
         }))
       }
 
@@ -199,8 +201,8 @@ export default function ReminderScheduler() {
           const graceEndAtMs = startAtMs + (1000 * 60 * 30)
           const preStartAtMs = startAtMs - (leadMins * 60 * 1000)
 
-          const preReminderKey = `routine-pre:${block.id}:${todayKey}`
-          const startReminderKey = `routine-start:${block.id}:${todayKey}`
+          const preReminderKey = `routine-pre:${block.id}:v${block.notifyVersion}:${todayKey}`
+          const startReminderKey = `routine-start:${block.id}:v${block.notifyVersion}:${todayKey}`
 
           // Pre-start notification (only if toggle is on and leadMins > 0)
           if (

@@ -140,12 +140,13 @@ export async function checkAndSendNotifications(): Promise<{
             task: true,
             startMinutes: true,
             endMinutes: true,
+            notifyVersion: true,
           },
         })
 
         for (const block of routineBlocks) {
           // "At start" notification: within 2 minutes of start time
-          const startKey = `push-routine-start:${block.id}:${todayKey}`
+          const startKey = `push-routine-start:${block.id}:v${block.notifyVersion}:${todayKey}`
           if (
             !hasSent(startKey) &&
             nowMinutes >= block.startMinutes &&
@@ -173,7 +174,7 @@ export async function checkAndSendNotifications(): Promise<{
 
           // "Pre-start" notification: 10 minutes before (configurable per-user would need DB, use 10 as default)
           const LEAD_MINS = 10
-          const preKey = `push-routine-pre:${block.id}:${todayKey}`
+          const preKey = `push-routine-pre:${block.id}:v${block.notifyVersion}:${todayKey}`
           const preMinutes = block.startMinutes - LEAD_MINS
           if (
             !hasSent(preKey) &&

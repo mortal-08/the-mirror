@@ -71,7 +71,8 @@ export async function createRoutineBlock(
   task: string,
   planDate: Date | string,
   startTime: string,
-  endTime: string
+  endTime: string,
+  templateId?: string
 ): Promise<ActionResult<Awaited<ReturnType<typeof prisma.routineBlock.create>>>> {
   try {
     const userId = await getUserId()
@@ -118,6 +119,7 @@ export async function createRoutineBlock(
         task: trimmedTask,
         startMinutes,
         endMinutes,
+        templateId: templateId || null,
       },
     })
 
@@ -211,12 +213,18 @@ export async function updateRoutineBlock(
       return { error: 'This block overlaps with an existing routine block.' }
     }
 
+    // Increment notifyVersion if time changed (invalidates old notification keys)
+    const timeChanged =
+      (data.startTime !== undefined && nextStartMinutes !== existing.startMinutes) ||
+      (data.endTime !== undefined && nextEndMinutes !== existing.endMinutes)
+
     const updated = await prisma.routineBlock.update({
       where: { id: existing.id },
       data: {
         task: nextTask,
         startMinutes: nextStartMinutes,
         endMinutes: nextEndMinutes,
+        ...(timeChanged ? { notifyVersion: { increment: 1 } } : {}),
       },
     })
 
